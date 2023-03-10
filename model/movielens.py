@@ -215,22 +215,34 @@ class Model(tfrs.Model):
         self.global_step = tf.Variable(0, trainable=False, dtype=tf.int64)
         self.sampling_bias = SamplingBiasCorrection()
 
-    def compute_loss(
-        self, features: Dict[Text, tf.Tensor], training=False
-    ) -> tf.Tensor:
-        self.global_step.assign_add(1)
-        movie_embeddings = self.candidate_model(features)
-        user_embeddings = self.query_model(features)
-        candidate_sampling_probability = (
-            self.sampling_bias(self.global_step, features["movie_id"])
-            if training
-            else None
-        )
+    def compute_loss(self, inputs, training=False) -> tf.Tensor:
+        if training:
+            self.global_step.assign_add(1)
+            features, extra_items = inputs
+            user_embeddings = self.query_model(features)
+            candidates_embeddings = self.candidate_model(features)
+            negatives_embeddings = self.candidate_model(extra_items)
+            # we cannot turn on the topK metrics calculation for training when there is extra negatives, need modification on the Retrieval call function
+            # true_candidate_ids=candidate_ids[:tf.shape(query_embeddings)[0]])
+            candidate_ids = tf.concat(
+                [features["movie_id"], extra_items["movie_id"]], axis=-1
+            )
+            candidate_embeddings = tf.concat(
+                [candidates_embeddings, negatives_embeddings], axis=0
+            )
+            candidate_sampling_probability = self.sampling_bias(
+                self.global_step, candidate_ids
+            )
+        else:
+            user_embeddings = self.query_model(inputs)
+            candidate_embeddings = self.candidate_model(inputs)
+            candidate_sampling_probability = None
+            candidate_ids = inputs["movie_id"]
         return self.task(
             user_embeddings,
-            movie_embeddings,
+            candidate_embeddings,
             candidate_sampling_probability=candidate_sampling_probability,
-            candidate_ids=features["movie_id"],
+            candidate_ids=candidate_ids,
             compute_metrics=not training,
         )
 
@@ -245,9 +257,11 @@ def train(ratings: tf.data.Dataset, movies: tf.data.Dataset, meta: Dict) -> None
 
     train = shuffled.take(900_000).batch(256).cache()
     test = shuffled.skip(900_000).take(100_000).batch(256).cache()
+    uniform_negatives = movies.cache().repeat().shuffle(1_000).batch(128)
+    train_with_mns = tf.data.Dataset.zip((train, uniform_negatives))
 
     # Train.
-    model.fit(train, epochs=1)
+    model.fit(train_with_mns, epochs=1)
     # evaluate
     model.evaluate(test, return_dict=True)
     return model
