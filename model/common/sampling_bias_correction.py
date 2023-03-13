@@ -2,7 +2,14 @@ import tensorflow as tf
 
 
 class SamplingBiasCorrection(tf.keras.layers.Layer):
+    """A naive implementation of SamplingBiasCorrection.
+    It supports the basic step estimation operation and returns the sampling probability for each key.
+    Notice it doesn't support key expiration yet, so the memory will continue to grow if used in sequential training.
+    """
     def __init__(self, lr=0.05, **kwargs):
+        """Use one table to record the lastest step, aka the A table in paper
+        Use another table to record the estimated step gap for each key, the B table in paper
+        """
         super(SamplingBiasCorrection, self).__init__(**kwargs)
         self.lr = lr
         self.lastest_step = tf.lookup.experimental.DenseHashTable(
