@@ -19,7 +19,10 @@ class TestSum(unittest.TestCase):
         # test the last 5 items
         keys = tf.strings.as_string(tf.range(5, 10))
         prob = self.sbc(cur_step=tf.constant(3, dtype=tf.int64), candidate_ids=keys)
-        self.assertEqual([0.6666666865348816] * 5, prob.numpy().tolist())
+        self.assertEqual(
+            [0.667] * 5, list(map(lambda x: round(x, 3), prob.numpy().tolist()))
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
