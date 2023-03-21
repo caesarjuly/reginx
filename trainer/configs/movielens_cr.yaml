@@ -1,0 +1,19 @@
+model:
+  temperature: 0.05
+  base_model: "TwoTower"
+  query_model: "MovieLensQueryModel"
+  candidate_model: "MovieLensCandidateModel"
+  item_id_key: "movie_id"
+
+train:
+  task_name: "TwoTowerTrain"
+  epochs: 1
+  batch_size: 256
+  mixed_negative_batch_size: 128
+  learning_rate: 0.05
+  train_data: "movielens/data/ratings_train"
+  test_data: "movielens/data/ratings_test"
+  candidate_data: "movielens/data/movies"
+  meta_data: "trainer/meta/movie_lens.json"
+  model_dir: "trainer/saved_models/movielens"
+  log_dir: "logs"

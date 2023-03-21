@@ -1,7 +1,7 @@
 import unittest
 import tensorflow as tf
 
-from model.common.sampling_bias_correction import SamplingBiasCorrection
+from trainer.common.sampling_bias_correction import SamplingBiasCorrection
 
 
 class TestSum(unittest.TestCase):
