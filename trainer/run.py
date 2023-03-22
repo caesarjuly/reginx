@@ -16,7 +16,6 @@ def run(config: str, hparams: ObjectDict) -> None:
     with aiplatform.start_execution(
         schema_title="system.ContainerExecution", display_name=config
     ) as execution:
-        aiplatform.log_params(hparams)
         train_artifact = aiplatform.Artifact.create(
             schema_title="system.Dataset",
             display_name=f"{config}_train",
@@ -33,6 +32,7 @@ def run(config: str, hparams: ObjectDict) -> None:
         if "AIP_MODEL_DIR" in os.environ:
             hparams.model_dir = os.environ["AIP_MODEL_DIR"]
         print("Model saved at " + hparams.model_dir)
+        aiplatform.log_params(hparams)
 
         task = task_factory.get_class(hparams.task_name)(hparams)
         result = task.run()
