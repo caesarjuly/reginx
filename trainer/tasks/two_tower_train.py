@@ -13,12 +13,7 @@ from trainer.models.factory import model_factory
 class TwoTowerTrain(BaseTask):
     def __init__(self, hparams) -> None:
         super().__init__(hparams)
-        self.meta = self.load_meta()
         self.train_data, self.test_data, self.candidate_data = self.load_data()
-
-    def load_meta(self):
-        with open(self.hparams.meta_data, "r") as f:
-            return json.load(f)
 
     def load_data(self) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
         download_from_directory(BUCKET_NAME, self.hparams.train_data, "train")
@@ -44,9 +39,9 @@ class TwoTowerTrain(BaseTask):
         self.model.compile(
             optimizer=tf.keras.optimizers.Adam(self.hparams.learning_rate)
         )
-        train = self.train_data.batch(self.hparams.batch_size).cache()
+        train = self.train_data.batch(self.hparams.batch_size).shuffle(100_000).cache()
 
-        test = self.test_data.batch(self.hparams.batch_size).cache()
+        test = self.test_data.batch(self.hparams.batch_size).shuffle(100_000).cache()
         uniform_negatives = (
             self.candidate_data.cache()
             .repeat()

@@ -15,5 +15,5 @@ train:
   test_data: "movielens/data/ratings_test"
   candidate_data: "movielens/data/movies"
   meta_data: "trainer/meta/movie_lens.json"
-  model_dir: "trainer/saved_models/movielens"
+  model_dir: "trainer/saved_models/movielens_cr"
   log_dir: "logs"

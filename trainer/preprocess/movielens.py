@@ -147,11 +147,65 @@ def transform_data():
             ),
         }
     )
-    ratings_train.save("ratings_train")
-    ratings_test.save("ratings_test")
+    uniform_negatives = movies.cache().repeat().shuffle(1_000)
+
+    train_negatives = tf.data.Dataset.zip((ratings_train, uniform_negatives)).map(
+        lambda x, y: {
+            "movie_id": y["movie_id"],
+            "user_id": x["user_id"],
+            "user_gender": x["user_gender"],
+            "user_occupation_label": x["user_occupation_label"],
+            "user_zip_code": x["user_zip_code"],
+            "bucketized_user_age": x["bucketized_user_age"],
+            "movie_genres": y["movie_genres"],
+            "movie_title": y["movie_title"],
+            "day_of_week": x["day_of_week"],
+            "hour_of_day": x["hour_of_day"],
+            "user_rating": 0.0,
+            "example_age": x["example_age"],
+            "example_age_square": x["example_age_square"],
+            "example_age_sqrt": x["example_age_sqrt"],
+        }
+    )
+
+    train_with_negatives = tf.data.Dataset.sample_from_datasets(
+        [ratings_train, train_negatives], weights=[0.5, 0.5]
+    )
+    test_negatives = tf.data.Dataset.zip((ratings_test, uniform_negatives)).map(
+        lambda x, y: {
+            "movie_id": y["movie_id"],
+            "user_id": x["user_id"],
+            "user_gender": x["user_gender"],
+            "user_occupation_label": x["user_occupation_label"],
+            "user_zip_code": x["user_zip_code"],
+            "bucketized_user_age": x["bucketized_user_age"],
+            "movie_genres": y["movie_genres"],
+            "movie_title": y["movie_title"],
+            "day_of_week": x["day_of_week"],
+            "hour_of_day": x["hour_of_day"],
+            "user_rating": 0.0,
+            "example_age": x["example_age"],
+            "example_age_square": x["example_age_square"],
+            "example_age_sqrt": x["example_age_sqrt"],
+        }
+    )
+    test_with_negatives = tf.data.Dataset.sample_from_datasets(
+        [ratings_test, test_negatives], weights=[0.5, 0.5]
+    )
+
+    ratings_train.shuffle(1_000).save("ratings_train")
+    ratings_test.shuffle(1_000).save("ratings_test")
+    train_with_negatives.shuffle(1_000).save("ratings_train_ranker")
+    test_with_negatives.shuffle(1_000).save("ratings_test_ranker")
     movies.save("movies")
     upload_from_directory("ratings_train", BUCKET_NAME, "movielens/data/ratings_train")
     upload_from_directory("ratings_test", BUCKET_NAME, "movielens/data/ratings_test")
+    upload_from_directory(
+        "ratings_train_ranker", BUCKET_NAME, "movielens/data/ratings_train_ranker"
+    )
+    upload_from_directory(
+        "ratings_test_ranker", BUCKET_NAME, "movielens/data/ratings_test_ranker"
+    )
     upload_from_directory("movies", BUCKET_NAME, "movielens/data/movies")
 
 
