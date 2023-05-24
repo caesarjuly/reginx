@@ -6,6 +6,13 @@ from trainer.util.tools import ObjectDict
 
 
 class InstanceGuidedMask(tf.keras.layers.Layer):
+    """Generate mask for instance (input feature embedding or hidden layer output)
+
+    Args:
+        output_dim: output dimension
+        reduction_ratio: aggregation_dim/projection_dim
+    """
+
     def __init__(
         self,
         output_dim: int,
@@ -21,6 +28,8 @@ class InstanceGuidedMask(tf.keras.layers.Layer):
 
 
 class MaskBlock(tf.keras.layers.Layer):
+    """MaskBlock combine InstanceGuidedMask with LayerNorm and FC layer"""
+
     def __init__(
         self,
         hparams: ObjectDict,
@@ -32,6 +41,7 @@ class MaskBlock(tf.keras.layers.Layer):
 
     def build(self, input_shape: tf.Tensor):
         _, hidden_emb_shape = input_shape
+        # The output dimension must be the same as the input embedding dimension
         self.instance_guided_mask = InstanceGuidedMask(
             output_dim=hidden_emb_shape[-1],
             reduction_ratio=self.hparams.reduction_ratio,
@@ -39,12 +49,16 @@ class MaskBlock(tf.keras.layers.Layer):
         self.dense = tf.keras.layers.Dense(self.hparams.mask_block_dim)
 
     def call(self, inputs, training=False):
+        # feat_emb for calculating the mask
+        # hidden_emb as the input, could be either feature embedding or hidden layer output
         feat_emb, hidden_emb = inputs
         masked_emb = self.instance_guided_mask(feat_emb, training=training) * hidden_emb
         return self.relu(self.ln(self.dense(masked_emb)))
 
 
 class MaskNet(tfrs.Model):
+    """MaskNet have two modes, parralel and serial"""
+
     def __init__(
         self,
         hparams: ObjectDict,
@@ -75,6 +89,7 @@ class MaskNet(tfrs.Model):
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         feat_emb = self.ranking_emb(features, training)
+        # In parallel mode, both inputs are feature embedding
         if self.hparams.mode == "parallel":
             block_out = []
             for mask_block in self.mask_blocks:
@@ -88,6 +103,7 @@ class MaskNet(tfrs.Model):
                 )
                 return self.dense(tf.concat(block_out, -1))
         else:
+            # In serial mode, the feature embedding is for mask calculation, the hidden embedding is the input for next MaskBlock
             hidden_emb = feat_emb
             for mask_block in self.mask_blocks:
                 hidden_emb = mask_block((feat_emb, hidden_emb))
