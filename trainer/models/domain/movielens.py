@@ -4,10 +4,9 @@ import tensorflow as tf
 from trainer.util.tools import ObjectDict
 
 
-class MovieLensQueryModel(tf.keras.Model):
-    def __init__(self, hparams: ObjectDict, meta: Dict):
+class MovieLensQueryEmb(tf.keras.Model):
+    def __init__(self, meta: Dict):
         super().__init__()
-        self.hparams = hparams
         self.user_gender = tf.keras.layers.CategoryEncoding(
             num_tokens=2, output_mode="one_hot"
         )
@@ -63,32 +62,26 @@ class MovieLensQueryModel(tf.keras.Model):
         )
 
     def call(self, inputs, training=False):
-        user_embeddings = self.dense(
-            tf.concat(
-                [
-                    self.user_gender(tf.where(inputs["user_gender"], 1, 0)),
-                    self.user_embedding(inputs["user_id"]),
-                    self.user_occupation_label(inputs["user_occupation_label"]),
-                    self.user_zip_code(inputs["user_zip_code"]),
-                    self.age_embedding(
-                        tf.cast(inputs["bucketized_user_age"], tf.int64)
-                    ),
-                    self.day_of_week(inputs["day_of_week"]),
-                    self.hour_of_day(inputs["hour_of_day"]),
-                    self.ts_cross((inputs["day_of_week"], inputs["hour_of_day"])),
-                    tf.reshape(inputs["example_age"], [-1, 1]),
-                    tf.reshape(inputs["example_age_square"], [-1, 1]),
-                    tf.reshape(inputs["example_age_sqrt"], [-1, 1]),
-                ],
-                axis=-1,
-            ),
-            training,
+        return tf.concat(
+            [
+                self.user_gender(tf.where(inputs["user_gender"], 1, 0)),
+                self.user_embedding(inputs["user_id"]),
+                self.user_occupation_label(inputs["user_occupation_label"]),
+                self.user_zip_code(inputs["user_zip_code"]),
+                self.age_embedding(tf.cast(inputs["bucketized_user_age"], tf.int64)),
+                self.day_of_week(inputs["day_of_week"]),
+                self.hour_of_day(inputs["hour_of_day"]),
+                self.ts_cross((inputs["day_of_week"], inputs["hour_of_day"])),
+                tf.reshape(inputs["example_age"], [-1, 1]),
+                tf.reshape(inputs["example_age_square"], [-1, 1]),
+                tf.reshape(inputs["example_age_sqrt"], [-1, 1]),
+            ],
+            axis=-1,
         )
-        return tf.math.l2_normalize(user_embeddings, -1)
 
 
-class MovieLensCandidateModel(tf.keras.Model):
-    def __init__(self, hparams: ObjectDict, meta: Dict):
+class MovieLensCandidateEmb(tf.keras.Model):
+    def __init__(self, meta: Dict):
         super().__init__()
         self.movie_id_embedding = tf.keras.Sequential(
             [
@@ -121,32 +114,20 @@ class MovieLensCandidateModel(tf.keras.Model):
                 tf.keras.layers.GlobalAveragePooling1D(),
             ]
         )
-        self.dense = tf.keras.Sequential(
-            [
-                tf.keras.layers.Dense(128, activation="relu"),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(64, activation="relu"),
-                tf.keras.layers.BatchNormalization(),
-            ]
-        )
 
     def call(self, inputs, training=False):
-        movie_embeddings = self.dense(
-            tf.concat(
-                [
-                    self.title_text_embedding(inputs["movie_title"]),
-                    self.movie_id_embedding(inputs["movie_id"]),
-                    self.genres(inputs["movie_genres"]),
-                ],
-                axis=-1,
-            ),
-            training,
+        return tf.concat(
+            [
+                self.title_text_embedding(inputs["movie_title"]),
+                self.movie_id_embedding(inputs["movie_id"]),
+                self.genres(inputs["movie_genres"]),
+            ],
+            axis=-1,
         )
-        return tf.math.l2_normalize(movie_embeddings, -1)
 
 
-class MovieLensModel(tf.keras.Model):
-    def __init__(self, hparams: ObjectDict, meta: Dict):
+class MovieLensRankingEmb(tf.keras.Model):
+    def __init__(self, meta: Dict):
         super().__init__()
         # user
         self.user_gender = tf.keras.layers.CategoryEncoding(
@@ -227,43 +208,24 @@ class MovieLensModel(tf.keras.Model):
                 tf.keras.layers.GlobalAveragePooling1D(),
             ]
         )
-        self.dense = tf.keras.Sequential(
-            [
-                tf.keras.layers.Dense(256, activation="relu"),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(128, activation="relu"),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(64, activation="relu"),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(1),
-            ]
-        )
-        self.sigmoid = tf.keras.layers.Activation("sigmoid")
 
     def call(self, inputs, training=False):
-        prediction = self.dense(
-            tf.concat(
-                [
-                    self.user_gender(tf.where(inputs["user_gender"], 1, 0)),
-                    self.user_embedding(inputs["user_id"]),
-                    self.user_occupation_label(inputs["user_occupation_label"]),
-                    self.user_zip_code(inputs["user_zip_code"]),
-                    self.age_embedding(
-                        tf.cast(inputs["bucketized_user_age"], tf.int64)
-                    ),
-                    self.day_of_week(inputs["day_of_week"]),
-                    self.hour_of_day(inputs["hour_of_day"]),
-                    self.ts_cross((inputs["day_of_week"], inputs["hour_of_day"])),
-                    tf.reshape(inputs["example_age"], [-1, 1]),
-                    tf.reshape(inputs["example_age_square"], [-1, 1]),
-                    tf.reshape(inputs["example_age_sqrt"], [-1, 1]),
-                    self.title_text_embedding(inputs["movie_title"]),
-                    self.movie_id_embedding(inputs["movie_id"]),
-                    self.genres(inputs["movie_genres"]),
-                ],
-                axis=-1,
-            ),
-            training,
+        return tf.concat(
+            [
+                self.user_gender(tf.where(inputs["user_gender"], 1, 0)),
+                self.user_embedding(inputs["user_id"]),
+                self.user_occupation_label(inputs["user_occupation_label"]),
+                self.user_zip_code(inputs["user_zip_code"]),
+                self.age_embedding(tf.cast(inputs["bucketized_user_age"], tf.int64)),
+                self.day_of_week(inputs["day_of_week"]),
+                self.hour_of_day(inputs["hour_of_day"]),
+                self.ts_cross((inputs["day_of_week"], inputs["hour_of_day"])),
+                tf.reshape(inputs["example_age"], [-1, 1]),
+                tf.reshape(inputs["example_age_square"], [-1, 1]),
+                tf.reshape(inputs["example_age_sqrt"], [-1, 1]),
+                self.title_text_embedding(inputs["movie_title"]),
+                self.movie_id_embedding(inputs["movie_id"]),
+                self.genres(inputs["movie_genres"]),
+            ],
+            axis=-1,
         )
-        logits = self.sigmoid(prediction)
-        return logits
