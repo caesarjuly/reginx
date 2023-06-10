@@ -37,7 +37,7 @@ class RankerTrain(BaseTask):
 
         test = self.test_data.batch(self.hparams.batch_size).shuffle(1_000).cache()
         tensorboard_callback = tf.keras.callbacks.TensorBoard(
-            log_dir=self.hparams.log_dir, histogram_freq=1
+            log_dir=f"/tmp/{self.hparams.log_dir}", histogram_freq=1
         )
 
         # Train.

@@ -7,6 +7,10 @@ import numpy as np
 from trainer.util.json import NpEncoder
 from trainer.common.gcp import upload_from_directory, BUCKET_NAME
 
+import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 
 def build_meta() -> None:
     # Ratings data.
@@ -41,6 +45,43 @@ def build_meta() -> None:
         ratings.map(lambda x: int(x["bucketized_user_age"]))
     )
 
+    gender_movie_id_cross_layer = tf.keras.layers.StringLookup()
+    gender_movie_id_cross_layer.adapt(
+        ratings.map(
+            lambda x: tf.strings.join(
+                [tf.strings.as_string(x["user_gender"]), x["movie_id"]],
+                separator="_",
+            )
+        )
+    )
+    occupation_movie_id_cross_layer = tf.keras.layers.StringLookup()
+    occupation_movie_id_cross_layer.adapt(
+        ratings.map(
+            lambda x: tf.strings.join(
+                [tf.strings.as_string(x["user_occupation_label"]), x["movie_id"]],
+                separator="_",
+            )
+        )
+    )
+    zip_movie_id_cross_layer = tf.keras.layers.StringLookup()
+    zip_movie_id_cross_layer.adapt(
+        ratings.map(
+            lambda x: tf.strings.join(
+                [x["user_zip_code"], x["movie_id"]],
+                separator="_",
+            )
+        )
+    )
+    age_movie_id_cross_layer = tf.keras.layers.StringLookup()
+    age_movie_id_cross_layer.adapt(
+        ratings.map(
+            lambda x: tf.strings.join(
+                [tf.strings.as_string(x["bucketized_user_age"]), x["movie_id"]],
+                separator="_",
+            )
+        )
+    )
+
     movie_id_layer = tf.keras.layers.StringLookup()
     movie_id_layer.adapt(movies.map(lambda x: x["movie_id"]))
     # -1 will be the first token as the masking value and oov value
@@ -52,11 +93,15 @@ def build_meta() -> None:
         "user_id": user_id_layer.get_vocabulary(),
         "user_zip_code": user_zip_code_layer.get_vocabulary(),
         "bucketized_user_age": bucketized_user_age_layer.get_vocabulary(),
+        "gender_movie_id_cross": gender_movie_id_cross_layer.get_vocabulary(),
+        "occupation_movie_id_cross": occupation_movie_id_cross_layer.get_vocabulary(),
+        "zip_movie_id_cross": zip_movie_id_cross_layer.get_vocabulary(),
+        "age_movie_id_cross": age_movie_id_cross_layer.get_vocabulary(),
         "movie_id": movie_id_layer.get_vocabulary(),
         "movie_genres": movie_genres_layer.get_vocabulary(),
         "movie_title": movie_title_layer.get_vocabulary(),
     }
-    with open("model/meta/movie_lens.json", "w+") as fp:
+    with open("trainer/meta/movie_lens.json", "w+") as fp:
         json.dump(meta_dict, fp, cls=NpEncoder)
 
 
@@ -210,5 +255,5 @@ def transform_data():
 
 
 if __name__ == "__main__":
-    # build_meta()
-    transform_data()
+    build_meta()
+    # transform_data()

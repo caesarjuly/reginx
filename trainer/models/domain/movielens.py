@@ -229,3 +229,57 @@ class MovieLensRankingEmb(tf.keras.Model):
             ],
             axis=-1,
         )
+
+
+class MovieLensWideEmb(tf.keras.Model):
+    def __init__(self, meta: Dict):
+        super().__init__()
+        self.gender_movie_id_cross_layer = tf.keras.layers.StringLookup(
+            vocabulary=meta["gender_movie_id_cross"], output_mode="one_hot"
+        )
+        self.occupation_movie_id_cross_layer = tf.keras.layers.StringLookup(
+            vocabulary=meta["occupation_movie_id_cross"], output_mode="one_hot"
+        )
+        self.zip_movie_id_cross_layer = tf.keras.layers.StringLookup(
+            vocabulary=meta["zip_movie_id_cross"], output_mode="one_hot"
+        )
+        self.age_movie_id_cross_layer = tf.keras.layers.StringLookup(
+            vocabulary=meta["age_movie_id_cross"], output_mode="one_hot"
+        )
+
+    def call(self, inputs, training=False):
+        return tf.concat(
+            [
+                self.gender_movie_id_cross_layer(
+                    tf.strings.join(
+                        [
+                            tf.strings.as_string(inputs["user_gender"]),
+                            inputs["movie_id"],
+                        ],
+                        separator="_",
+                    )
+                ),
+                self.occupation_movie_id_cross_layer(
+                    tf.strings.join(
+                        [
+                            tf.strings.as_string(inputs["user_occupation_label"]),
+                            inputs["movie_id"],
+                        ],
+                        separator="_",
+                    )
+                ),
+                self.zip_movie_id_cross_layer(
+                    tf.strings.join(
+                        [inputs["user_zip_code"], inputs["movie_id"]],
+                        separator="_",
+                    )
+                ),
+                self.age_movie_id_cross_layer(
+                    tf.strings.join(
+                        [tf.strings.as_string(inputs["bucketized_user_age"]), inputs["movie_id"]],
+                        separator="_",
+                    )
+                ),
+            ],
+            axis=-1,
+        )

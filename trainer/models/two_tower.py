@@ -2,7 +2,7 @@ from typing import Dict
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 
-from trainer.common.sampling_bias_correction import SamplingBiasCorrection
+from trainer.models.common.sampling_bias_correction import SamplingBiasCorrection
 from trainer.util.tools import ObjectDict
 
 
