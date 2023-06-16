@@ -24,9 +24,12 @@ class RankerTrain(BaseTask):
         )
 
     def run(self) -> Dict:
-        ranking_emb = model_factory.get_class(self.hparams.ranking_emb)(self.meta)
+        ranking_embs = [
+            model_factory.get_class(emb.strip())(self.meta)
+            for emb in self.hparams.ranking_emb.split(",")
+        ]
         ranker = model_factory.get_class(self.hparams.ranker)
-        self.model = ranker(self.hparams, ranking_emb)
+        self.model = ranker(self.hparams, *ranking_embs)
         lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
             self.hparams.learning_rate, decay_steps=1000, decay_rate=0.9
         )
@@ -58,4 +61,4 @@ class RankerTrain(BaseTask):
         print([i[0] for i in result])
         # Save the index.
         # https://github.com/tensorflow/models/issues/8990#issuecomment-1069733488
-        tf.saved_model.save(self.model, self.hparams.model_dir)
+        tf.saved_model.save(self.model, f"/tmp/{self.hparams.model_dir}")

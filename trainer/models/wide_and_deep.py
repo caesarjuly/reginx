@@ -1,6 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
+from trainer.models.common.fm import FMLayer
 from trainer.models.common.wide_and_deep_tfrs import WideAndDeepTFRS
 
 from trainer.util.tools import ObjectDict
@@ -18,14 +19,28 @@ class WideAndDeep(WideAndDeepTFRS):
             loss=tf.keras.losses.BinaryCrossentropy(),
             metrics=[tf.keras.metrics.BinaryCrossentropy(), tf.keras.metrics.AUC()],
         )
-        self.wide = tf.keras.experimental.LinearModel()
+        self.wide = tf.keras.experimental.LinearModel(
+            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001)
+        )
         self.deep = tf.keras.Sequential(
             [
-                tf.keras.layers.Dense(256, activation="relu"),
+                tf.keras.layers.Dense(
+                    256,
+                    activation="relu",
+                    kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+                ),
                 tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(128, activation="relu"),
+                tf.keras.layers.Dense(
+                    128,
+                    activation="relu",
+                    kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+                ),
                 tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(64, activation="relu"),
+                tf.keras.layers.Dense(
+                    64,
+                    activation="relu",
+                    kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+                ),
                 tf.keras.layers.BatchNormalization(),
                 tf.keras.layers.Dense(1),
             ]
@@ -42,7 +57,7 @@ class WideAndDeep(WideAndDeepTFRS):
         self, features: Dict[Text, tf.Tensor], training=False
     ) -> tf.Tensor:
         labels = tf.expand_dims(
-            tf.where(features[self.hparams.label] >= 3, 1, 0), axis=-1
+            tf.where(features[self.hparams.label] > 3, 1, 0), axis=-1
         )
         rating_predictions = self(features, training=training)
 

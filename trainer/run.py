@@ -78,10 +78,14 @@ if __name__ == "__main__":
     cloud_profiler.init()
 
     if args.force:
-        experiment = aiplatform.Experiment(
-            experiment_name=args.exp, project=PROJECT_ID, location=LOCATION
+        experiment_run = aiplatform.ExperimentRun(
+            run_name=args.run,
+            experiment=args.exp,
+            project=PROJECT_ID,
+            location=LOCATION,
         )
-        experiment.delete()
+
+        experiment_run.delete(delete_backing_tensorboard_run=True)
 
     aiplatform.init(
         project=PROJECT_ID,

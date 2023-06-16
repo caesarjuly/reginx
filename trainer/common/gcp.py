@@ -1,6 +1,7 @@
 import glob
 import os
 from pathlib import Path
+import shutil
 from google.cloud import storage
 
 PROJECT_ID = "fourth-blend-378118"
@@ -56,7 +57,11 @@ def upload_from_directory(
             blob.upload_from_filename(local_file)
 
 
-def download_from_directory(src_bucket_name: str, src_blob_name: str, dest_path: str):
+def download_from_directory(
+    src_bucket_name: str, src_blob_name: str, dest_path: str, overwrite: bool = True
+):
+    if overwrite:
+        shutil.rmtree(dest_path)
     bucket = GCS_CLIENT.get_bucket(src_bucket_name)
     blobs = bucket.list_blobs(prefix=src_blob_name)  # Get list of files
     for blob in blobs:

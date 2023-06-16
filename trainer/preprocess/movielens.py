@@ -85,7 +85,7 @@ def build_meta() -> None:
     movie_id_layer = tf.keras.layers.StringLookup()
     movie_id_layer.adapt(movies.map(lambda x: x["movie_id"]))
     # -1 will be the first token as the masking value and oov value
-    movie_genres_layer = tf.keras.layers.IntegerLookup(mask_token=-2)
+    movie_genres_layer = tf.keras.layers.IntegerLookup()
     movie_genres_layer.adapt(movies.map(lambda x: x["movie_genres"]))
     movie_title_layer = tf.keras.layers.TextVectorization()
     movie_title_layer.adapt(movies.map(lambda x: x["movie_title"]))
@@ -240,20 +240,39 @@ def transform_data():
 
     ratings_train.shuffle(1_000).save("ratings_train")
     ratings_test.shuffle(1_000).save("ratings_test")
-    train_with_negatives.shuffle(1_000).save("ratings_train_ranker")
-    test_with_negatives.shuffle(1_000).save("ratings_test_ranker")
+    # follow the practice from DCN v2, ignore rating 3
+    ratings_train.filter(lambda x: x["user_rating"] != 3).shuffle(1_000).save(
+        "ratings_train_remove_rating3"
+    )
+    ratings_test.filter(lambda x: x["user_rating"] != 3).shuffle(1_000).save(
+        "ratings_test_remove_rating3"
+    )
+    train_with_negatives.shuffle(1_000).save("ratings_train_random_neg")
+    test_with_negatives.shuffle(1_000).save("ratings_test_random_neg")
     movies.save("movies")
     upload_from_directory("ratings_train", BUCKET_NAME, "movielens/data/ratings_train")
     upload_from_directory("ratings_test", BUCKET_NAME, "movielens/data/ratings_test")
     upload_from_directory(
-        "ratings_train_ranker", BUCKET_NAME, "movielens/data/ratings_train_ranker"
+        "ratings_train_remove_rating3",
+        BUCKET_NAME,
+        "movielens/data/ratings_train_remove_rating3",
     )
     upload_from_directory(
-        "ratings_test_ranker", BUCKET_NAME, "movielens/data/ratings_test_ranker"
+        "ratings_test_remove_rating3",
+        BUCKET_NAME,
+        "movielens/data/ratings_test_remove_rating3",
+    )
+    upload_from_directory(
+        "ratings_train_random_neg",
+        BUCKET_NAME,
+        "movielens/data/ratings_train_random_neg",
+    )
+    upload_from_directory(
+        "ratings_test_random_neg", BUCKET_NAME, "movielens/data/ratings_test_random_neg"
     )
     upload_from_directory("movies", BUCKET_NAME, "movielens/data/movies")
 
 
 if __name__ == "__main__":
-    build_meta()
-    # transform_data()
+    # build_meta()
+    transform_data()

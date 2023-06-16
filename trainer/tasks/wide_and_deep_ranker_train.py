@@ -12,10 +12,12 @@ from trainer.models.factory import model_factory
 
 class WideAndDeepRankerTrain(RankerTrain):
     def run(self) -> Dict:
-        deep_emb = model_factory.get_class(self.hparams.deep_emb)(self.meta)
-        wide_emb = model_factory.get_class(self.hparams.wide_emb)(self.meta)
+        ranking_embs = [
+            model_factory.get_class(emb.strip())(self.meta)
+            for emb in self.hparams.ranking_emb.split(",")
+        ]
         ranker = model_factory.get_class(self.hparams.ranker)
-        self.model = ranker(self.hparams, deep_emb, wide_emb)
+        self.model = ranker(self.hparams, *ranking_embs)
         self.model.compile(optimizer=["ftrl", "adam"])
 
         train = self.train_data.batch(self.hparams.batch_size).shuffle(1_000).cache()

@@ -1,19 +1,19 @@
 model:
   temperature: 0.05
-  base_model: "TwoTower"
-  query_emb: "MovieLensQueryEmb"
-  candidate_emb: "MovieLensCandidateEmb"
-  item_id_key: "movie_id"
+  base_model: TwoTower
+  query_emb: MovieLensQueryEmb
+  candidate_emb: MovieLensCandidateEmb
+  item_id_key: movie_id
 
 train:
-  task_name: "CandidateRetrieverTrain"
+  task_name: CandidateRetrieverTrain
   epochs: 1
   batch_size: 256
   mixed_negative_batch_size: 128
   learning_rate: 0.05
-  train_data: "movielens/data/ratings_train"
-  test_data: "movielens/data/ratings_test"
-  candidate_data: "movielens/data/movies"
-  meta_data: "trainer/meta/movie_lens.json"
-  model_dir: "trainer/saved_models/movielens_cr"
-  log_dir: "logs"
+  train_data: movielens/data/ratings_train
+  test_data: movielens/data/ratings_test
+  candidate_data: movielens/data/movies
+  meta_data: trainer/meta/movie_lens.json
+  model_dir: trainer/saved_models/movielens_cr
+  log_dir: logs

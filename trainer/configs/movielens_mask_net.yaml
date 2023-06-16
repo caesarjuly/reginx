@@ -1,19 +1,19 @@
 model:
-  ranker: "MaskNet"
-  ranking_emb: "MovieLensRankingEmb"
-  label: "user_rating"
+  ranker: MaskNet
+  ranking_emb: MovieLensRankingEmb
+  label: user_rating
   mask_block_dim: 64
-  mode: "parallel"
-  mask_block_num: 5
+  mode: parallel
+  mask_block_num: 3
   reduction_ratio: 2
 
 train:
-  task_name: "RankerTrain"
-  epochs: 1
+  task_name: RankerTrain
+  epochs: 2
   batch_size: 256
   learning_rate: 0.001
-  train_data: "movielens/data/ratings_train_ranker"
-  test_data: "movielens/data/ratings_test_ranker"
-  meta_data: "trainer/meta/movie_lens.json"
-  model_dir: "trainer/saved_models/movielens_ranker"
-  log_dir: "logs"
+  train_data: movielens/data/ratings_train_remove_rating3
+  test_data: movielens/data/ratings_test_remove_rating3
+  meta_data: trainer/meta/movie_lens.json
+  model_dir: trainer/saved_models/movielens_ranker
+  log_dir: logs

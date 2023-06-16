@@ -1,0 +1,15 @@
+model:
+  ranker: FM
+  ranking_emb: "MovieLensFMDeepEmb, MovieLensFMWideEmb"
+  label: user_rating
+
+train:
+  task_name: RankerTrain
+  epochs: 3
+  batch_size: 256
+  learning_rate: 0.001
+  train_data: movielens/data/ratings_train_remove_rating3
+  test_data: movielens/data/ratings_test_remove_rating3
+  meta_data: trainer/meta/movie_lens.json
+  model_dir: trainer/saved_models/movielens_ranker
+  log_dir: logs

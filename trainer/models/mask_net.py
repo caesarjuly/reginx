@@ -19,9 +19,15 @@ class InstanceGuidedMask(tf.keras.layers.Layer):
         reduction_ratio: float = 2.0,
     ):
         super().__init__()
-        self.aggregation = tf.keras.layers.Dense(output_dim * reduction_ratio)
+        self.aggregation = tf.keras.layers.Dense(
+            output_dim * reduction_ratio,
+            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+        )
         self.relu = tf.keras.layers.Activation("relu")
-        self.projection = tf.keras.layers.Dense(output_dim)
+        self.projection = tf.keras.layers.Dense(
+            output_dim,
+            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+        )
 
     def call(self, feat_emb, training=False):
         return self.projection(self.relu(self.aggregation(feat_emb)))
@@ -77,9 +83,17 @@ class MaskNet(tfrs.Model):
         if self.hparams.mode == "parallel":
             self.dense = tf.keras.Sequential(
                 [
-                    tf.keras.layers.Dense(128, activation="relu"),
+                    tf.keras.layers.Dense(
+                        128,
+                        activation="relu",
+                        kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+                    ),
                     tf.keras.layers.BatchNormalization(),
-                    tf.keras.layers.Dense(64, activation="relu"),
+                    tf.keras.layers.Dense(
+                        64,
+                        activation="relu",
+                        kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+                    ),
                     tf.keras.layers.BatchNormalization(),
                     tf.keras.layers.Dense(1, "sigmoid"),
                 ]
@@ -113,7 +127,7 @@ class MaskNet(tfrs.Model):
         self, features: Dict[Text, tf.Tensor], training=False
     ) -> tf.Tensor:
         labels = tf.expand_dims(
-            tf.where(features[self.hparams.label] > 0, 1, 0), axis=-1
+            tf.where(features[self.hparams.label] > 3, 1, 0), axis=-1
         )
 
         rating_predictions = self(features, training)
