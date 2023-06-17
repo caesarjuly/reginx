@@ -9,7 +9,7 @@ from trainer.common.gcp import (
     PROJECT_ID,
 )
 from trainer.util.tools import ObjectDict, prepare_hparams
-from trainer.tasks.factory import task_factory
+from trainer.tasks import task_factory
 
 
 def run(config: str, hparams: ObjectDict) -> None:

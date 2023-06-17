@@ -7,7 +7,7 @@ import tensorflow_recommenders as tfrs
 
 from trainer.common.gcp import BUCKET_NAME, download_from_directory
 from trainer.tasks.base import BaseTask
-from trainer.models.factory import model_factory
+from trainer.models import model_factory
 
 
 class CandidateRetrieverTrain(BaseTask):

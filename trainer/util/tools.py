@@ -1,4 +1,9 @@
 import yaml
+from inspect import isclass
+from pkgutil import iter_modules
+from pathlib import Path
+from importlib import import_module
+
 
 class Factory:
     def __init__(self):
@@ -21,6 +26,7 @@ class Factory:
 
     def get_subclasses(self, cls):
         for subclass in cls.__subclasses__():
+            print(subclass)
             yield from self.get_subclasses(subclass)
             yield subclass
 

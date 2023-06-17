@@ -7,7 +7,7 @@ import tensorflow as tf
 
 from trainer.common.gcp import BUCKET_NAME, download_from_directory
 from trainer.tasks.ranker_train import RankerTrain
-from trainer.models.factory import model_factory
+from trainer.models import model_factory
 
 
 class WideAndDeepRankerTrain(RankerTrain):

@@ -1,10 +1,11 @@
 from typing import Dict
 import tensorflow as tf
+import tensorflow_recommenders as tfrs
 
 from trainer.util.tools import ObjectDict
 
 
-class MovieLensQueryEmb(tf.keras.Model):
+class MovieLensQueryEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         self.user_gender = tf.keras.layers.CategoryEncoding(
@@ -80,7 +81,7 @@ class MovieLensQueryEmb(tf.keras.Model):
         )
 
 
-class MovieLensCandidateEmb(tf.keras.Model):
+class MovieLensCandidateEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         self.movie_id_embedding = tf.keras.Sequential(
@@ -124,7 +125,7 @@ class MovieLensCandidateEmb(tf.keras.Model):
         )
 
 
-class MovieLensRankingEmb(tf.keras.Model):
+class MovieLensRankingEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         # user
@@ -227,7 +228,7 @@ class MovieLensRankingEmb(tf.keras.Model):
         )
 
 
-class MovieLensWideEmb(tf.keras.Model):
+class MovieLensWideEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         self.gender_movie_id_cross_layer = tf.keras.layers.StringLookup(
@@ -284,7 +285,7 @@ class MovieLensWideEmb(tf.keras.Model):
         )
 
 
-class MovieLensFMWideEmb(tf.keras.Model):
+class MovieLensFMWideEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         # user
@@ -343,7 +344,7 @@ class MovieLensFMWideEmb(tf.keras.Model):
         )
 
 
-class MovieLensFMDeepEmb(tf.keras.Model):
+class MovieLensFMDeepEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         fm_output_dim = 20
