@@ -18,7 +18,8 @@ class FMRankerTrain(RankerTrain):
         # https://github.com/tensorflow/models/issues/8990#issuecomment-1069733488
         self.model.save(f"/tmp/{self.hparams.model_dir}/main")
         # save linear models
-        _, linear_item = self.model.get_models()
+        linear_user, linear_item = self.model.get_models()
+        linear_user.save(f"/tmp/{self.hparams.model_dir}/linear_user")
         linear_item.save(f"/tmp/{self.hparams.model_dir}/linear_item")
         # save fm embeddings
         user_emb, item_emb = self.model.get_fm_emb()
