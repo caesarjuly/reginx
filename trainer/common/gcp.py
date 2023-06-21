@@ -61,10 +61,11 @@ def download_from_directory(
     src_bucket_name: str, src_blob_name: str, dest_path: str, overwrite: bool = False
 ):
     # if this directory has data and not overwrite
-    if os.path.isdir(dest_path):
-        if os.listdir(dest_path) and not overwrite:
+    if os.path.isdir(dest_path) and os.listdir(dest_path):
+        if overwrite:
+            shutil.rmtree(dest_path)
+        else:
             return
-    shutil.rmtree(dest_path)
     bucket = GCS_CLIENT.get_bucket(src_bucket_name)
     blobs = bucket.list_blobs(prefix=src_blob_name)  # Get list of files
     for blob in blobs:

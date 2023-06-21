@@ -20,7 +20,3 @@ class BaseTask(ABC):
     @abstractmethod
     def run(self):
         pass
-
-    @abstractmethod
-    def save(self):
-        pass

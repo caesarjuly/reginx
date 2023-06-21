@@ -26,7 +26,6 @@ class Factory:
 
     def get_subclasses(self, cls):
         for subclass in cls.__subclasses__():
-            print(subclass)
             yield from self.get_subclasses(subclass)
             yield subclass
 

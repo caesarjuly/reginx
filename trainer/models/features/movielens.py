@@ -285,7 +285,190 @@ class MovieLensWideEmb(tfrs.Model):
         )
 
 
-class MovieLensFMWideEmb(tfrs.Model):
+# FM
+class MovieLensFMWideUserEmb(tfrs.Model):
+    def __init__(self, meta: Dict):
+        super().__init__()
+        # user
+        self.user_gender = tf.keras.layers.CategoryEncoding(
+            num_tokens=2, output_mode="one_hot"
+        )
+        self.user_occupation_label = tf.keras.layers.CategoryEncoding(
+            num_tokens=22, output_mode="one_hot"
+        )
+        self.user_zip_code = tf.keras.layers.StringLookup(
+            vocabulary=meta["user_zip_code"], output_mode="one_hot"
+        )
+
+        self.age_embedding = tf.keras.layers.IntegerLookup(
+            vocabulary=meta["bucketized_user_age"], output_mode="one_hot"
+        )
+
+        self.day_of_week = tf.keras.layers.CategoryEncoding(
+            num_tokens=7, output_mode="one_hot"
+        )
+        self.hour_of_day = tf.keras.layers.CategoryEncoding(
+            num_tokens=24, output_mode="one_hot"
+        )
+
+    def call(self, inputs, training=False):
+        return tf.concat(
+            [
+                self.user_gender(tf.where(inputs["user_gender"], 1, 0)),
+                self.user_occupation_label(inputs["user_occupation_label"]),
+                self.user_zip_code(inputs["user_zip_code"]),
+                self.age_embedding(tf.cast(inputs["bucketized_user_age"], tf.int64)),
+                self.day_of_week(inputs["day_of_week"]),
+                self.hour_of_day(inputs["hour_of_day"]),
+            ],
+            axis=-1,
+        )
+
+
+class MovieLensFMWideItemEmb(tfrs.Model):
+    def __init__(self, meta: Dict):
+        super().__init__()
+        # movie
+        self.movie_id_embedding = tf.keras.layers.StringLookup(
+            vocabulary=meta["movie_id"], output_mode="one_hot"
+        )
+
+        self.title_text_embedding = tf.keras.layers.TextVectorization(
+            vocabulary=meta["movie_title"], output_mode="multi_hot"
+        )
+
+        self.genres = tf.keras.layers.IntegerLookup(
+            vocabulary=meta["movie_genres"],
+            output_mode="multi_hot",
+        )
+
+    def call(self, inputs, training=False):
+        return tf.concat(
+            [
+                self.title_text_embedding(inputs["movie_title"]),
+                self.movie_id_embedding(inputs["movie_id"]),
+                self.genres(inputs["movie_genres"]),
+                tf.reshape(inputs["example_age"], [-1, 1]),
+                tf.reshape(inputs["example_age_square"], [-1, 1]),
+                tf.reshape(inputs["example_age_sqrt"], [-1, 1]),
+            ],
+            axis=-1,
+        )
+
+
+class MovieLensFMDeepUserEmb(tfrs.Model):
+    def __init__(self, meta: Dict):
+        super().__init__()
+        fm_output_dim = 20
+        # user
+        self.user_gender = tf.keras.layers.Embedding(
+            input_dim=2,
+            output_dim=fm_output_dim,
+        )
+        self.user_occupation_label = tf.keras.layers.Embedding(
+            input_dim=22,
+            output_dim=fm_output_dim,
+        )
+        self.user_zip_code = tf.keras.Sequential(
+            [
+                tf.keras.layers.StringLookup(vocabulary=meta["user_zip_code"]),
+                tf.keras.layers.Embedding(
+                    input_dim=len(meta["user_zip_code"]),
+                    output_dim=fm_output_dim,
+                ),
+            ]
+        )
+
+        self.age_embedding = tf.keras.Sequential(
+            [
+                tf.keras.layers.IntegerLookup(vocabulary=meta["bucketized_user_age"]),
+                tf.keras.layers.Embedding(
+                    input_dim=len(meta["bucketized_user_age"]),
+                    output_dim=fm_output_dim,
+                ),
+            ]
+        )
+        self.user_embedding = tf.keras.Sequential(
+            [
+                tf.keras.layers.StringLookup(vocabulary=meta["user_id"]),
+                tf.keras.layers.Embedding(
+                    input_dim=len(meta["user_id"]), output_dim=fm_output_dim
+                ),
+            ]
+        )
+        self.day_of_week = tf.keras.layers.Embedding(
+            input_dim=7,
+            output_dim=fm_output_dim,
+        )
+        self.hour_of_day = tf.keras.layers.Embedding(
+            input_dim=24,
+            output_dim=fm_output_dim,
+        )
+
+    def call(self, inputs, training=False):
+        return tf.stack(
+            [
+                self.user_gender(tf.where(inputs["user_gender"], 1, 0)),
+                self.user_embedding(inputs["user_id"]),
+                self.user_occupation_label(inputs["user_occupation_label"]),
+                self.user_zip_code(inputs["user_zip_code"]),
+                self.age_embedding(tf.cast(inputs["bucketized_user_age"], tf.int64)),
+                self.day_of_week(inputs["day_of_week"]),
+                self.hour_of_day(inputs["hour_of_day"]),
+            ],
+            axis=1,
+        )
+
+
+class MovieLensFMDeepItemEmb(tfrs.Model):
+    def __init__(self, meta: Dict):
+        super().__init__()
+        fm_output_dim = 20
+
+        # movie
+        self.movie_id_embedding = tf.keras.Sequential(
+            [
+                tf.keras.layers.StringLookup(vocabulary=meta["movie_id"]),
+                tf.keras.layers.Embedding(len(meta["movie_id"]), fm_output_dim),
+            ]
+        )
+        self.title_text_embedding = tf.keras.Sequential(
+            [
+                tf.keras.layers.TextVectorization(vocabulary=meta["movie_title"]),
+                tf.keras.layers.Embedding(
+                    input_dim=len(meta["movie_title"]),
+                    output_dim=fm_output_dim,
+                    mask_zero=True,
+                ),
+                # We average the embedding of individual words to get one embedding vector per title.
+                tf.keras.layers.GlobalAveragePooling1D(),
+            ]
+        )
+        self.genres = tf.keras.Sequential(
+            [
+                tf.keras.layers.IntegerLookup(vocabulary=meta["movie_genres"]),
+                tf.keras.layers.Embedding(
+                    input_dim=len((meta["movie_genres"])),
+                    output_dim=fm_output_dim,
+                    mask_zero=True,
+                ),
+                tf.keras.layers.GlobalAveragePooling1D(),
+            ]
+        )
+
+    def call(self, inputs, training=False):
+        return tf.stack(
+            [
+                self.title_text_embedding(inputs["movie_title"]),
+                self.movie_id_embedding(inputs["movie_id"]),
+                self.genres(inputs["movie_genres"]),
+            ],
+            axis=1,
+        )
+
+
+# DeepFM
+class MovieLensDeepFMWideEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         # user
@@ -333,26 +516,22 @@ class MovieLensFMWideEmb(tfrs.Model):
                 self.age_embedding(tf.cast(inputs["bucketized_user_age"], tf.int64)),
                 self.day_of_week(inputs["day_of_week"]),
                 self.hour_of_day(inputs["hour_of_day"]),
-                tf.reshape(inputs["example_age"], [-1, 1]),
-                tf.reshape(inputs["example_age_square"], [-1, 1]),
-                tf.reshape(inputs["example_age_sqrt"], [-1, 1]),
                 self.title_text_embedding(inputs["movie_title"]),
                 self.movie_id_embedding(inputs["movie_id"]),
                 self.genres(inputs["movie_genres"]),
+                tf.reshape(inputs["example_age"], [-1, 1]),
+                tf.reshape(inputs["example_age_square"], [-1, 1]),
+                tf.reshape(inputs["example_age_sqrt"], [-1, 1]),
             ],
             axis=-1,
         )
 
 
-class MovieLensFMDeepEmb(tfrs.Model):
+class MovieLensDeepFMDeepEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         fm_output_dim = 20
         # user
-        self.user_ = tf.keras.layers.Embedding(
-            input_dim=2,
-            output_dim=fm_output_dim,
-        )
         self.user_gender = tf.keras.layers.Embedding(
             input_dim=2,
             output_dim=fm_output_dim,

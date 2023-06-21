@@ -1,10 +1,10 @@
 model:
   ranker: FM
-  ranking_emb: "MovieLensFMDeepEmb, MovieLensFMWideEmb"
+  ranking_emb: "MovieLensFMWideUserEmb, MovieLensFMWideItemEmb, MovieLensFMDeepUserEmb, MovieLensFMDeepItemEmb"
   label: user_rating
 
 train:
-  task_name: RankerTrain
+  task_name: FMRankerTrain
   epochs: 3
   batch_size: 256
   learning_rate: 0.001

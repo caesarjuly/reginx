@@ -1,0 +1,7 @@
+
+task:
+  task_name: GenerateFMEmbedding
+  data: movielens/data/ratings_train_remove_rating3
+  meta_data: trainer/meta/movie_lens.json
+  model_dir: trainer/saved_models/movielens_ranker
+  log_dir: logs
