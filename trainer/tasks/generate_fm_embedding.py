@@ -60,16 +60,19 @@ class GenerateFMEmbedding(BaseTask):
         scores = tf.reduce_sum(
             tf.multiply(concat_user_vector, concat_item_vector), axis=-1
         )
-        print(scores)
+        # print(scores)
 
         # shape (batch_size)
-        final_scores = (
+        final_scores = tf.sigmoid(
             scores
             + tf.squeeze(user_linear_score)
             + tf.squeeze(user_vector_interaction_score)
         )
-        print(tf.sigmoid(final_scores))
 
         main_model = tf.keras.models.load_model(f"/tmp/{self.hparams.model_dir}/main")
         # shape (batch_size)
-        print(tf.squeeze(main_model.predict(data)))
+        original_scores = tf.squeeze(main_model.predict(data))
+
+        print(
+            f"Do the two scores equal? The answer is: {tf.math.equal(final_scores, original_scores)}"
+        )
