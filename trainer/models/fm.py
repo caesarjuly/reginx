@@ -1,7 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
-from trainer.models.common.fm import FMLayer
+from trainer.models.common.feature_cross import FMLayer
 
 from trainer.util.tools import ObjectDict
 

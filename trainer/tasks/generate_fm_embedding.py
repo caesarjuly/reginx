@@ -1,6 +1,6 @@
 from trainer.common.gcp import BUCKET_NAME, download_from_directory
 from trainer.tasks.base import BaseTask
-from trainer.models.common.fm import FMLayer
+from trainer.models.common.feature_cross import FMLayer
 import tensorflow as tf
 
 

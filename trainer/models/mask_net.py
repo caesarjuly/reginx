@@ -84,6 +84,12 @@ class MaskNet(tfrs.Model):
             self.dense = tf.keras.Sequential(
                 [
                     tf.keras.layers.Dense(
+                        256,
+                        activation="relu",
+                        kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+                    ),
+                    tf.keras.layers.BatchNormalization(),
+                    tf.keras.layers.Dense(
                         128,
                         activation="relu",
                         kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),

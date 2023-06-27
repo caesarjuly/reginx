@@ -8,6 +8,7 @@ from trainer.models.mask_net import *
 from trainer.models.two_tower import *
 from trainer.models.wide_and_deep import *
 from trainer.models.features.movielens import *
+from trainer.models.dcn import *
 
 model_factory = Factory()
 model_factory.register_all_subclasses(tfrs.Model)
