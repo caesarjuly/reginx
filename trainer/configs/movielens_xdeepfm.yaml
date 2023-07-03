@@ -1,10 +1,11 @@
 model:
-  ranker: WideAndDeep
-  ranking_emb: "MovieLensRankingEmb, MovieLensWideEmb"
+  ranker: xDeepFM
+  ranking_emb: "MovieLensDeepFMDeepEmb, MovieLensDeepFMWideEmb"
   label: user_rating
+  layer_sizes: "100,100,100"
 
 train:
-  task_name: WideAndDeepRankerTrain
+  task_name: RankerTrain
   epochs: 3
   batch_size: 256
   learning_rate: 0.001

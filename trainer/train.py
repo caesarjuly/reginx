@@ -84,7 +84,6 @@ if __name__ == "__main__":
             project=PROJECT_ID,
             location=LOCATION,
         )
-
         experiment_run.delete(delete_backing_tensorboard_run=True)
 
     aiplatform.init(

@@ -6,7 +6,7 @@ class FMLayer(tf.keras.layers.Layer):
     without linear term and bias.
 
      Input shape
-       - 3D tensor with shape: ``(batch_size,field_size,embedding_size)``.
+       - 3D tensor with shape: ``(batch_size, field_size, embedding_size)``.
 
      Output shape
        - 2D tensor with shape: ``(batch_size, 1)``.
@@ -44,7 +44,7 @@ class CrossNetLayer(tf.keras.layers.Layer):
         super(CrossNetLayer, self).__init__(**kwargs)
         self.layer_num = layer_num
 
-    def build(self, input_shape: tf.Tensor):
+    def build(self, input_shape: tf.Tensor, **kwargs):
         dim = input_shape[-1]
         # must provide the name, https://medium.com/dive-into-ml-ai/troubles-with-saving-models-with-custom-layers-in-tensorflow-b31bd5f31a34
         self.ws = [
@@ -56,7 +56,7 @@ class CrossNetLayer(tf.keras.layers.Layer):
             for i in range(self.layer_num)
         ]
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         """we can also do the matrix multiplication on x_0 and x_l first, but this will explode the memory/computation consumption
         An example:
           # shape (batch_size, embedding_size, embedding_size)
@@ -76,3 +76,75 @@ class CrossNetLayer(tf.keras.layers.Layer):
         # shape (batch_size, embedding_size)
         # we must specify the axis here. Because there is a None dimension and tf don't know if it should be squeeze or not
         return tf.squeeze(x_l, axis=2)
+
+
+class CINLayer(tf.keras.layers.Layer):
+    """Compressed Interaction Network from xDeepFM paper, it contains 3 steps:
+    1. outer product to generate field-wise feature interactions
+    2. CNN to compress feature vectors
+    3. sum pooling to build output
+
+    Input shape
+      - 3D tensor with shape: ``(batch_size, field_size, embedding_size)``.
+
+    Output shape
+      - 2D tensor with shape: ``(batch_size, feature_map_num)`` ``featuremap_num = sum(layer_size)`` .
+
+    References
+      - [xDeepFM](https://arxiv.org/pdf/1803.05170.pdf)
+    """
+
+    def __init__(
+        self, layer_sizes=(100, 100, 100), activation=None, l2=0.001, **kwargs
+    ):
+        super(CINLayer, self).__init__(**kwargs)
+        self.layer_sizes = layer_sizes
+        # by default the activation is identity
+        self.activation = activation
+        self.l2 = l2
+
+    def build(self, input_shape: tf.Tensor):
+        self.field_sizes = [input_shape[1]]
+        self.emb_dim = input_shape[-1]
+        self.filters = []
+        for size in self.layer_sizes:
+            self.filters.append(
+                # 1D cnn and the filter/kernel size is 1
+                tf.keras.layers.Conv1D(
+                    size,
+                    1,
+                    activation=self.activation,
+                    kernel_regularizer=tf.keras.regularizers.l2(self.l2),
+                )
+            )
+            self.field_sizes.append(size)
+
+    def call(self, inputs, **kwargs):
+        hidden_nn_input = inputs
+        final_outputs = []
+        for idx, _ in enumerate(self.layer_sizes):
+            # shape [batch_size, field_size, field_size, embedding_size]
+            outer_product = tf.einsum("xiz,xjz->xijz", inputs, hidden_nn_input)
+            # shape [batch_size, field_size_0 * field_size_idx, embedding_size]
+            merge_product = tf.reshape(
+                outer_product,
+                shape=[
+                    -1,
+                    self.field_sizes[0] * self.field_sizes[idx],
+                    self.emb_dim,
+                ],
+            )
+            # shape [batch_size, embedding_size, field_size_0 * field_size_idx]
+            transposed_product = tf.transpose(merge_product, perm=[0, 2, 1])
+            # shape [batch_size, embedding_size, filter_size]
+            cur_output = self.filters[idx](transposed_product)
+            # shape [batch_size, filter_size, embedding_size]
+            cur_output = tf.transpose(cur_output, perm=[0, 2, 1])
+            final_outputs.append(cur_output)
+            hidden_nn_input = cur_output
+        # shape [batch_size, sum(filter_size), embedding_size]
+        result = tf.concat(final_outputs, axis=1)
+        # shape [batch_size, sum(filter_size)]
+        result = tf.reduce_sum(result, -1, keepdims=False)
+
+        return result

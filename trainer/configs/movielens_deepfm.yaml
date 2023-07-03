@@ -1,6 +1,6 @@
 model:
   ranker: DeepFM
-  ranking_emb: "MovieLensFMDeepEmb, MovieLensFMWideEmb"
+  ranking_emb: "MovieLensDeepFMDeepEmb, MovieLensDeepFMWideEmb"
   label: user_rating
 
 train:
