@@ -49,6 +49,7 @@ class RankerTrain(BaseTask):
             epochs=self.hparams.epochs,
             callbacks=[tensorboard_callback],
         )
+        self.model.summary()
         # evaluate
         return self.model.evaluate(test, return_dict=True)
 

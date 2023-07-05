@@ -3,6 +3,8 @@ model:
   ranking_emb: "MovieLensDeepFMDeepEmb, MovieLensDeepFMWideEmb"
   label: user_rating
   layer_sizes: "100,100,100"
+  split_half: true
+  cin_activation: linear
 
 train:
   task_name: RankerTrain

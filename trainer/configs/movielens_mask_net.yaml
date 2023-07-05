@@ -4,7 +4,7 @@ model:
   label: user_rating
   mask_block_dim: 64
   mode: parallel
-  mask_block_num: 3
+  mask_block_num: 2
   reduction_ratio: 2
 
 train:

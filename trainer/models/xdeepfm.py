@@ -2,6 +2,7 @@ from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from trainer.models.common.feature_cross import CINLayer
+from trainer.models.common.basic_layers import DNNLayer
 
 from trainer.util.tools import ObjectDict
 
@@ -23,30 +24,19 @@ class xDeepFM(tfrs.Model):
         )
         layer_sizes = list(map(int, self.hparams.layer_sizes.strip().split(",")))
         self.cin = tf.keras.Sequential(
-            [CINLayer(layer_sizes=layer_sizes), tf.keras.layers.Dense(1)]
+            [
+                CINLayer(
+                    layer_sizes=layer_sizes,
+                    activation=self.hparams.cin_activation,
+                    split_half=self.hparams.split_half,
+                ),
+                tf.keras.layers.Dense(1),
+            ]
         )
         self.deep = tf.keras.Sequential(
             [
                 tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(
-                    256,
-                    activation="relu",
-                    kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
-                ),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(
-                    128,
-                    activation="relu",
-                    kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
-                ),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(
-                    64,
-                    activation="relu",
-                    kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
-                ),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(1),
+                DNNLayer(output_logits=True),
             ]
         )
         self.activation = tf.keras.layers.Activation("sigmoid")

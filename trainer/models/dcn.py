@@ -1,6 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
+from trainer.models.common.basic_layers import DNNLayer
 
 from trainer.util.tools import ObjectDict
 from trainer.models.common.feature_cross import CrossNetLayer
@@ -22,28 +23,7 @@ class DeepCrossNetwork(tfrs.Model):
             metrics=[tf.keras.metrics.BinaryCrossentropy(), tf.keras.metrics.AUC()],
         )
         self.cross_net = CrossNetLayer(layer_num=self.hparams.layer_num)
-        self.dense = tf.keras.Sequential(
-            [
-                tf.keras.layers.Dense(
-                    256,
-                    activation="relu",
-                    kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
-                ),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(
-                    128,
-                    activation="relu",
-                    kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
-                ),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(
-                    64,
-                    activation="relu",
-                    kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
-                ),
-                tf.keras.layers.BatchNormalization(),
-            ]
-        )
+        self.dense = DNNLayer()
         self.concat = tf.keras.layers.Concatenate()
         self.prediction = tf.keras.layers.Dense(1, "sigmoid")
 

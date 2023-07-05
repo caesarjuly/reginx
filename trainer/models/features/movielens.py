@@ -359,7 +359,7 @@ class MovieLensFMWideItemEmb(tfrs.Model):
 class MovieLensFMDeepUserEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
-        fm_output_dim = 20
+        fm_output_dim = 30
         # user
         self.user_gender = tf.keras.layers.Embedding(
             input_dim=2,
@@ -423,7 +423,7 @@ class MovieLensFMDeepUserEmb(tfrs.Model):
 class MovieLensFMDeepItemEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
-        fm_output_dim = 20
+        fm_output_dim = 30
 
         # movie
         self.movie_id_embedding = tf.keras.Sequential(
@@ -530,7 +530,7 @@ class MovieLensDeepFMWideEmb(tfrs.Model):
 class MovieLensDeepFMDeepEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
-        fm_output_dim = 20
+        fm_output_dim = 30
         # user
         self.user_gender = tf.keras.layers.Embedding(
             input_dim=2,

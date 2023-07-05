@@ -1,6 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
+from trainer.models.common.basic_layers import DNNLayer
 
 from trainer.util.tools import ObjectDict
 
@@ -83,25 +84,8 @@ class MaskNet(tfrs.Model):
         if self.hparams.mode == "parallel":
             self.dense = tf.keras.Sequential(
                 [
-                    tf.keras.layers.Dense(
-                        256,
-                        activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
-                    ),
-                    tf.keras.layers.BatchNormalization(),
-                    tf.keras.layers.Dense(
-                        128,
-                        activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
-                    ),
-                    tf.keras.layers.BatchNormalization(),
-                    tf.keras.layers.Dense(
-                        64,
-                        activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
-                    ),
-                    tf.keras.layers.BatchNormalization(),
-                    tf.keras.layers.Dense(1, "sigmoid"),
+                    DNNLayer(output_logits=True),
+                    tf.keras.layers.Activation("sigmoid"),
                 ]
             )
         else:
