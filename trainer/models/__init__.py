@@ -10,6 +10,7 @@ from trainer.models.wide_and_deep import *
 from trainer.models.features.movielens import *
 from trainer.models.dcn import *
 from trainer.models.xdeepfm import *
+from trainer.models.autoint import *
 
 model_factory = Factory()
 model_factory.register_all_subclasses(tfrs.Model)

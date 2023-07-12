@@ -181,3 +181,93 @@ class CINLayer(tf.keras.layers.Layer):
         result = tf.reduce_sum(result, -1, keepdims=False)
 
         return result
+
+
+class MultiHeadSelfAttentionLayer(tf.keras.layers.Layer):
+    """Multi-head self attention layer that models the feature interaction using attention weights
+
+    Input shape
+      - 3D tensor with shape: ``(batch_size, field_size, embedding_size)``.
+
+    Output shape
+      - 2D tensor with shape: ``(batch_size, field_size, head_dim * head_num)``.
+
+    References
+      - [AutoInt](https://arxiv.org/pdf/1810.11921.pdf)
+    """
+
+    def __init__(
+        self,
+        head_dim=32,
+        head_num=2,
+        use_res=True,
+        l2=0,
+        **kwargs,
+    ):
+        super(MultiHeadSelfAttentionLayer, self).__init__(**kwargs)
+        self.head_dim = head_dim
+        self.head_num = head_num
+        self.output_dim = head_dim * head_num
+        # use residual or not
+        self.use_res = use_res
+        self.l2 = l2
+
+    def build(self, input_shape: tf.Tensor):
+        embedding_size = input_shape[-1]
+        self.W_Query = self.add_weight(
+            name="query",
+            shape=[embedding_size, self.output_dim],
+            regularizer=tf.keras.regularizers.l2(self.l2),
+        )
+        self.W_Key = self.add_weight(
+            name="key",
+            shape=[embedding_size, self.output_dim],
+            regularizer=tf.keras.regularizers.l2(self.l2),
+        )
+        self.W_Value = self.add_weight(
+            name="value",
+            shape=[embedding_size, self.output_dim],
+            regularizer=tf.keras.regularizers.l2(self.l2),
+        )
+        if self.use_res:
+            self.W_Res = self.add_weight(
+                name="res",
+                shape=[embedding_size, self.output_dim],
+                regularizer=tf.keras.regularizers.l2(self.l2),
+            )
+
+    def call(self, inputs, **kwargs):
+        # shape [batch_size, field_size, head_dim * head_num]
+        querys = tf.matmul(inputs, self.W_Query)
+        keys = tf.matmul(inputs, self.W_Key)
+        values = tf.matmul(inputs, self.W_Value)
+
+        # reshape and move the head_num to axis 0
+        # shape [head_num, batch_size, field_size, head_dim]
+        querys = tf.stack(tf.split(querys, self.head_num, axis=2), axis=0)
+        keys = tf.stack(tf.split(keys, self.head_num, axis=2), axis=0)
+        values = tf.stack(tf.split(values, self.head_num, axis=2), axis=0)
+
+        # shape [head_num, batch_size, field_size, field_size]
+        weights = tf.matmul(querys, keys, transpose_b=True)
+        # scale
+        weights = weights / self.head_dim**0.5
+        # the last dimension is the score
+        # shape [head_num, batch_size, field_size, field_size]
+        scores = tf.nn.softmax(weights, axis=-1)
+        # weighted_sum
+        # shape [head_num, batch_size, field_size, head_dim]
+        outputs = tf.matmul(scores, values)
+        # restore shape
+        # shape [[1, batch_size, field_size, head_dim]], list of tensor
+        outputs = tf.split(outputs, self.head_num, axis=0)
+        # shape [1, batch_size, field_size, head_dim * head_num]
+        outputs = tf.concat(outputs, axis=-1)
+        # shape [batch_size, field_size, head_dim * head_num]
+        outputs = tf.squeeze(outputs, axis=0)
+
+        if self.use_res:
+            # shape [batch_size, field_size, head_dim * head_num]
+            outputs += tf.matmul(inputs, self.W_Res)
+        outputs = tf.nn.relu(outputs)
+        return outputs

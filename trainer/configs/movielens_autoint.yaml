@@ -1,0 +1,18 @@
+model:
+  ranker: AutoInt
+  ranking_emb: "MovieLensDeepFMDeepEmb, MovieLensDeepFMWideEmb"
+  label: user_rating
+  att_layer_num: 3
+  head_dim: 32
+  head_num: 2
+
+train:
+  task_name: RankerTrain
+  epochs: 2
+  batch_size: 256
+  learning_rate: 0.001
+  train_data: movielens/data/ratings_train_remove_rating3
+  test_data: movielens/data/ratings_test_remove_rating3
+  meta_data: trainer/meta/movie_lens.json
+  model_dir: trainer/saved_models/movielens_ranker
+  log_dir: logs
