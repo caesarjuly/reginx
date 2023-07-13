@@ -251,15 +251,14 @@ class MultiHeadSelfAttentionLayer(tf.keras.layers.Layer):
         # shape [head_num, batch_size, field_size, field_size]
         weights = tf.matmul(querys, keys, transpose_b=True)
         # scale
-        weights = weights / self.head_dim**0.5
-        # the last dimension is the score
+        weights /= self.head_dim**0.5
         # shape [head_num, batch_size, field_size, field_size]
         scores = tf.nn.softmax(weights, axis=-1)
         # weighted_sum
         # shape [head_num, batch_size, field_size, head_dim]
         outputs = tf.matmul(scores, values)
         # restore shape
-        # shape [[1, batch_size, field_size, head_dim]], list of tensor
+        # shape [[1, batch_size, field_size, head_dim]], head_num lists of tensor
         outputs = tf.split(outputs, self.head_num, axis=0)
         # shape [1, batch_size, field_size, head_dim * head_num]
         outputs = tf.concat(outputs, axis=-1)
