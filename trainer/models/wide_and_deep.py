@@ -48,11 +48,15 @@ class WideAndDeep(WideAndDeepTFRS):
         self.wide = tf.keras.experimental.LinearModel(
             kernel_regularizer=tf.keras.regularizers.l2(l2=0.001)
         )
-        self.deep = DNNLayer(output_logits=True)
-        self.activation = tf.keras.layers.Activation("sigmoid")
+        self.deep = DNNLayer()
+        self.prediction = tf.keras.layers.Dense(
+            1,
+            activation="sigmoid",
+            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+        )
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
-        return self.activation(
+        return self.prediction(
             self.deep(self.deep_emb(features), training=training)
             + self.wide(self.wide_emb(features), training=training)
         )

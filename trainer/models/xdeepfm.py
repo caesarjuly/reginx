@@ -36,14 +36,18 @@ class xDeepFM(tfrs.Model):
         self.deep = tf.keras.Sequential(
             [
                 tf.keras.layers.Flatten(),
-                DNNLayer(output_logits=True),
+                DNNLayer(),
             ]
         )
-        self.activation = tf.keras.layers.Activation("sigmoid")
+        self.prediction = tf.keras.layers.Dense(
+            1,
+            activation="sigmoid",
+            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+        )
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         deep_emb = self.deep_emb(features)
-        return self.activation(
+        return self.prediction(
             self.linear(self.wide_emb(features), training=training)
             + self.cin(deep_emb, training=training)
             + self.deep(deep_emb, training=training),

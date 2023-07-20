@@ -19,7 +19,6 @@ class DNNLayer(tf.keras.layers.Layer):
         use_bn=True,
         dropout=0.0,
         l2=0.001,
-        output_logits=False,
         **kwargs
     ):
         super(DNNLayer, self).__init__(**kwargs)
@@ -36,14 +35,6 @@ class DNNLayer(tf.keras.layers.Layer):
                 self.model.add(tf.keras.layers.BatchNormalization())
             if dropout:
                 self.model.add(tf.keras.layers.Dropout(dropout))
-
-        if output_logits:
-            self.model.add(
-                tf.keras.layers.Dense(
-                    1,
-                    kernel_regularizer=tf.keras.regularizers.l2(l2),
-                )
-            )
 
     def call(self, inputs, **kwargs):
         return self.model(inputs, **kwargs)

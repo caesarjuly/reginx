@@ -84,12 +84,20 @@ class MaskNet(tfrs.Model):
         if self.hparams.mode == "parallel":
             self.dense = tf.keras.Sequential(
                 [
-                    DNNLayer(output_logits=True),
-                    tf.keras.layers.Activation("sigmoid"),
+                    DNNLayer(),
+                    tf.keras.layers.Dense(
+                        1,
+                        activation="sigmoid",
+                        kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+                    ),
                 ]
             )
         else:
-            self.dense = tf.keras.layers.Dense(1, "sigmoid")
+            self.dense = tf.keras.layers.Dense(
+                1,
+                "sigmoid",
+                kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+            )
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         feat_emb = self.ranking_emb(features, training)

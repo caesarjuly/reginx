@@ -18,7 +18,10 @@ class WideAndDeepRankerTrain(RankerTrain):
         ]
         ranker = model_factory.get_class(self.hparams.ranker)
         self.model = ranker(self.hparams, *ranking_embs)
-        self.model.compile(optimizer=["ftrl", "adam"])
+        self.model.compile(
+            optimizer=["ftrl", "adam"],
+            steps_per_execution=1000,
+        )
 
         train = self.train_data.batch(self.hparams.batch_size).shuffle(1_000).cache()
 

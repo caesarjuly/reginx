@@ -33,7 +33,8 @@ class CandidateRetrieverTrain(BaseTask):
             self.hparams, query_emb, candidate_emb, self.candidate_data
         )
         self.model.compile(
-            optimizer=tf.keras.optimizers.Adam(self.hparams.learning_rate)
+            optimizer=tf.keras.optimizers.Adam(self.hparams.learning_rate),
+            steps_per_execution=1000,
         )
         train = self.train_data.batch(self.hparams.batch_size).shuffle(100_000).cache()
 

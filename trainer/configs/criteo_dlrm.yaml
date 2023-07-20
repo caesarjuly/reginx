@@ -1,0 +1,17 @@
+model:
+  ranker: DLRM
+  ranking_emb: "CriteoSparseEmb, CriteoDenseEmb"
+  bottom_layer_sizes: "512,256,64,16"
+  top_layer_sizes: "512,256"
+  label: label
+
+train:
+  task_name: RankerTrain
+  epochs: 1
+  batch_size: 256
+  learning_rate: 0.001
+  train_data: criteo/train/day_0_train_small
+  test_data: criteo/train/day_1_train_small
+  meta_data: trainer/meta/criteo.json
+  model_dir: trainer/saved_models/criteo_ranker
+  log_dir: logs
