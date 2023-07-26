@@ -1,9 +1,11 @@
 model:
-  ranker: DeepCrossNetwork
-  ranking_emb: CriteoRankingEmb
-  layer_sizes: "512,256"
-  layer_num: 6
+  ranker: AutoInt
+  ranking_emb: CriteoDenseAsWeightRankingEmb
   label: label
+  att_layer_num: 3
+  head_dim: 32
+  head_num: 2
+  dnn_layer_sizes: "512,256"
 
 train:
   task_name: RankerTrain

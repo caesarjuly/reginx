@@ -24,6 +24,35 @@ class CriteoDenseEmb(tfrs.Model):
         )
 
 
+class CriteoDenseAsWeightEmb(tfrs.Model):
+    def __init__(self, meta: Dict):
+        super().__init__()
+        self.total_dense = 13
+        self.norms = [
+            tf.keras.layers.Normalization(
+                mean=meta[f"dense_{i}"]["mean"], variance=meta[f"dense_{i}"]["std"]
+            )
+            for i in range(1, self.total_dense + 1)
+        ]
+        # shape [feature_num, emb_size]
+        self.dense_emb = self.add_weight(
+            name="dense_emb",
+            shape=[self.total_dense, 16],
+        )
+
+    def call(self, inputs, training=False):
+        # shape [batch_size, feature_num, 1]
+        dense_weights = tf.stack(
+            [
+                self.norms[i - 1](tf.reshape(inputs[f"dense_{i}"], [-1, 1]))
+                for i in range(1, self.total_dense + 1)
+            ],
+            axis=1,
+        )
+        # shape [batch_size, feature_num, emb_size]
+        return dense_weights * self.dense_emb
+
+
 class CriteoSparseEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
@@ -70,3 +99,15 @@ class CriteoRankingEmb(tfrs.Model):
         sparse_emb = self.sparse_emb(inputs, training=training)
         concat_sparse_emb = tf.concat(tf.unstack(sparse_emb, axis=1), axis=-1)
         return tf.concat([dense_emb, concat_sparse_emb], axis=-1)
+
+
+class CriteoDenseAsWeightRankingEmb(tfrs.Model):
+    def __init__(self, meta: Dict):
+        super().__init__()
+        self.dense_emb = CriteoDenseAsWeightEmb(meta)
+        self.sparse_emb = CriteoSparseEmb(meta)
+
+    def call(self, inputs, training=False):
+        dense_emb = self.dense_emb(inputs, training=training)
+        sparse_emb = self.sparse_emb(inputs, training=training)
+        return tf.concat([dense_emb, sparse_emb], axis=1)

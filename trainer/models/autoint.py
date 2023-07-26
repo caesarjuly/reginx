@@ -8,19 +8,13 @@ from trainer.util.tools import ObjectDict
 
 
 class AutoInt(tfrs.Model):
-    def __init__(
-        self, hparams: ObjectDict, deep_emb: tf.keras.Model, wide_emb: tf.keras.Model
-    ):
+    def __init__(self, hparams: ObjectDict, rank_emb: tf.keras.Model):
         super().__init__()
-        self.deep_emb = deep_emb
-        self.wide_emb = wide_emb
+        self.rank_emb = rank_emb
         self.hparams = hparams
         self.task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
             loss=tf.keras.losses.BinaryCrossentropy(),
             metrics=[tf.keras.metrics.BinaryCrossentropy(), tf.keras.metrics.AUC()],
-        )
-        self.linear = tf.keras.experimental.LinearModel(
-            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001)
         )
         self.attentions = tf.keras.Sequential(
             [
@@ -29,12 +23,15 @@ class AutoInt(tfrs.Model):
                 )
                 for _ in range(hparams.att_layer_num)
             ]
-            + [tf.keras.layers.Flatten(), tf.keras.layers.Dense(1)]
+            + [tf.keras.layers.Flatten()]
+        )
+        dnn_layer_sizes = list(
+            map(int, self.hparams.dnn_layer_sizes.strip().split(","))
         )
         self.deep = tf.keras.Sequential(
             [
                 tf.keras.layers.Flatten(),
-                DNNLayer(),
+                DNNLayer(dnn_layer_sizes),
             ]
         )
         self.prediction = tf.keras.layers.Dense(
@@ -44,19 +41,21 @@ class AutoInt(tfrs.Model):
         )
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
-        deep_emb = self.deep_emb(features)
+        deep_emb = self.rank_emb(features)
         return self.prediction(
-            self.linear(self.wide_emb(features), training=training)
-            + self.attentions(deep_emb, training=training)
-            + self.deep(deep_emb, training=training),
+            tf.concat(
+                [
+                    self.attentions(deep_emb, training=training),
+                    self.deep(deep_emb, training=training),
+                ],
+                axis=-1,
+            ),
         )
 
     def compute_loss(
         self, features: Dict[Text, tf.Tensor], training=False
     ) -> tf.Tensor:
-        labels = tf.expand_dims(
-            tf.where(features[self.hparams.label] > 3, 1, 0), axis=-1
-        )
+        labels = features[self.hparams.label]
         rating_predictions = self(features, training=training)
 
         # The task computes the loss and the metrics.

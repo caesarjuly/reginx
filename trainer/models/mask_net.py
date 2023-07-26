@@ -82,9 +82,10 @@ class MaskNet(tfrs.Model):
             MaskBlock(hparams=hparams) for _ in range(self.hparams.mask_block_num)
         ]
         if self.hparams.mode == "parallel":
+            layer_sizes = list(map(int, self.hparams.layer_sizes.strip().split(",")))
             self.dense = tf.keras.Sequential(
                 [
-                    DNNLayer(),
+                    DNNLayer(layer_sizes),
                     tf.keras.layers.Dense(
                         1,
                         activation="sigmoid",
@@ -124,11 +125,8 @@ class MaskNet(tfrs.Model):
     def compute_loss(
         self, features: Dict[Text, tf.Tensor], training=False
     ) -> tf.Tensor:
-        labels = tf.expand_dims(
-            tf.where(features[self.hparams.label] > 3, 1, 0), axis=-1
-        )
-
-        rating_predictions = self(features, training)
+        labels = features[self.hparams.label]
+        rating_predictions = self(features, training=training)
 
         # The task computes the loss and the metrics.
         return self.task(

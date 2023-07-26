@@ -22,21 +22,26 @@ class xDeepFM(tfrs.Model):
         self.linear = tf.keras.experimental.LinearModel(
             kernel_regularizer=tf.keras.regularizers.l2(l2=0.001)
         )
-        layer_sizes = list(map(int, self.hparams.layer_sizes.strip().split(",")))
+        cin_layer_sizes = list(
+            map(int, self.hparams.cin_layer_sizes.strip().split(","))
+        )
         self.cin = tf.keras.Sequential(
             [
                 CINLayer(
-                    layer_sizes=layer_sizes,
+                    layer_sizes=cin_layer_sizes,
                     activation=self.hparams.cin_activation,
                     split_half=self.hparams.split_half,
                 ),
                 tf.keras.layers.Dense(1),
             ]
         )
+        dnn_layer_sizes = list(
+            map(int, self.hparams.dnn_layer_sizes.strip().split(","))
+        )
         self.deep = tf.keras.Sequential(
             [
                 tf.keras.layers.Flatten(),
-                DNNLayer(),
+                DNNLayer(dnn_layer_sizes),
             ]
         )
         self.prediction = tf.keras.layers.Dense(
@@ -56,9 +61,7 @@ class xDeepFM(tfrs.Model):
     def compute_loss(
         self, features: Dict[Text, tf.Tensor], training=False
     ) -> tf.Tensor:
-        labels = tf.expand_dims(
-            tf.where(features[self.hparams.label] > 3, 1, 0), axis=-1
-        )
+        labels = features[self.hparams.label]
         rating_predictions = self(features, training=training)
 
         # The task computes the loss and the metrics.

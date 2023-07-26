@@ -1,9 +1,11 @@
 model:
-  ranker: DeepCrossNetwork
-  ranking_emb: CriteoRankingEmb
-  layer_sizes: "512,256"
-  layer_num: 6
+  ranker: xDeepFM
+  ranking_emb: "CriteoSparseEmb, CriteoDenseEmb"
   label: label
+  dnn_layer_sizes: "400,400,400"
+  cin_layer_sizes: "200,200,200"
+  split_half: true
+  cin_activation: linear
 
 train:
   task_name: RankerTrain

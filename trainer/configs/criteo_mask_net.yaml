@@ -1,9 +1,12 @@
 model:
-  ranker: DeepCrossNetwork
+  ranker: MaskNet
   ranking_emb: CriteoRankingEmb
-  layer_sizes: "512,256"
-  layer_num: 6
   label: label
+  layer_sizes: "400,400,400"
+  mask_block_dim: 64
+  mode: parallel
+  mask_block_num: 3
+  reduction_ratio: 2
 
 train:
   task_name: RankerTrain
