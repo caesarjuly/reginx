@@ -1,5 +1,6 @@
 import argparse
 import os
+import tensorflow as tf
 
 from google.cloud import aiplatform
 from google.cloud.aiplatform.training_utils import cloud_profiler
@@ -10,6 +11,23 @@ from trainer.common.gcp import (
 )
 from trainer.util.tools import ObjectDict, prepare_hparams
 from trainer.tasks import task_factory
+
+# gpus = tf.config.list_physical_devices("GPU")
+# if gpus:
+#     try:
+#         # Currently, memory growth needs to be the same across GPUs
+#         for gpu in gpus:
+#             tf.config.experimental.set_memory_growth(gpu, True)
+#         logical_gpus = tf.config.list_logical_devices("GPU")
+#         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+#     except RuntimeError as e:
+#         # Memory growth must be set before GPUs have been initialized
+#         print(e)
+
+# policy = tf.keras.mixed_precision.Policy("mixed_float16")
+# tf.keras.mixed_precision.set_global_policy(policy)
+# print("Compute dtype: %s" % policy.compute_dtype)
+# print("Variable dtype: %s" % policy.variable_dtype)
 
 
 def run(config: str, hparams: ObjectDict) -> None:

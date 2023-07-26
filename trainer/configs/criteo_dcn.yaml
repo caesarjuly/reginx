@@ -1,8 +1,8 @@
 model:
-  ranker: DLRM
-  ranking_emb: "CriteoSparseEmb, CriteoDenseEmb"
-  bottom_layer_sizes: "512,256,64,16"
-  top_layer_sizes: "512,256"
+  ranker: DeepCrossNetwork
+  ranking_emb: CriteoRankingEmb
+  layer_sizes: "512,256"
+  layer_num: 6
   label: label
 
 train:

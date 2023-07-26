@@ -1,8 +1,7 @@
 model:
-  ranker: DLRM
+  ranker: DeepFM
   ranking_emb: "CriteoSparseEmb, CriteoDenseEmb"
-  bottom_layer_sizes: "512,256,64,16"
-  top_layer_sizes: "512,256"
+  layer_sizes: "512,256,64,1"
   label: label
 
 train:

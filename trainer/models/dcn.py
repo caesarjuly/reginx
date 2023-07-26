@@ -23,7 +23,8 @@ class DeepCrossNetwork(tfrs.Model):
             metrics=[tf.keras.metrics.BinaryCrossentropy(), tf.keras.metrics.AUC()],
         )
         self.cross_net = CrossNetLayer(layer_num=self.hparams.layer_num)
-        self.dense = DNNLayer()
+        layer_sizes = list(map(int, self.hparams.layer_sizes.strip().split(",")))
+        self.dense = DNNLayer(layer_sizes)
         self.concat = tf.keras.layers.Concatenate()
         self.prediction = tf.keras.layers.Dense(1, "sigmoid")
 
@@ -38,10 +39,7 @@ class DeepCrossNetwork(tfrs.Model):
     def compute_loss(
         self, features: Dict[Text, tf.Tensor], training=False
     ) -> tf.Tensor:
-        labels = tf.expand_dims(
-            tf.where(features[self.hparams.label] > 3, 1, 0), axis=-1
-        )
-
+        labels = features[self.hparams.label]
         rating_predictions = self(features, training=training)
 
         # The task computes the loss and the metrics.

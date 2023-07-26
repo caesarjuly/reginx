@@ -23,10 +23,11 @@ class DeepFM(tfrs.Model):
             kernel_regularizer=tf.keras.regularizers.l2(l2=0.001)
         )
         self.fm = FMLayer()
+        layer_sizes = list(map(int, self.hparams.layer_sizes.strip().split(",")))
         self.deep = tf.keras.Sequential(
             [
                 tf.keras.layers.Flatten(),
-                DNNLayer(),
+                DNNLayer(layer_sizes),
             ]
         )
         self.prediction = tf.keras.layers.Dense(
@@ -46,9 +47,7 @@ class DeepFM(tfrs.Model):
     def compute_loss(
         self, features: Dict[Text, tf.Tensor], training=False
     ) -> tf.Tensor:
-        labels = tf.expand_dims(
-            tf.where(features[self.hparams.label] > 3, 1, 0), axis=-1
-        )
+        labels = features[self.hparams.label]
         rating_predictions = self(features, training=training)
 
         # The task computes the loss and the metrics.

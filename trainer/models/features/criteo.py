@@ -31,6 +31,15 @@ class CriteoSparseEmb(tfrs.Model):
         self.embs = [
             tf.keras.Sequential(
                 [
+                    tf.keras.layers.Hashing(
+                        num_bins=meta[f"sparse_{i}"]["unique"] // 5
+                    ),
+                    tf.keras.layers.Embedding(meta[f"sparse_{i}"]["unique"] // 5, 16),
+                ]
+            )
+            if meta[f"sparse_{i}"]["unique"] > 5_000_000
+            else tf.keras.Sequential(
+                [
                     tf.keras.layers.StringLookup(
                         vocabulary=meta[f"sparse_{i}"]["vocab"]
                     ),
@@ -48,3 +57,16 @@ class CriteoSparseEmb(tfrs.Model):
             ],
             axis=1,
         )
+
+
+class CriteoRankingEmb(tfrs.Model):
+    def __init__(self, meta: Dict):
+        super().__init__()
+        self.dense_emb = CriteoDenseEmb(meta)
+        self.sparse_emb = CriteoSparseEmb(meta)
+
+    def call(self, inputs, training=False):
+        dense_emb = self.dense_emb(inputs, training=training)
+        sparse_emb = self.sparse_emb(inputs, training=training)
+        concat_sparse_emb = tf.concat(tf.unstack(sparse_emb, axis=1), axis=-1)
+        return tf.concat([dense_emb, concat_sparse_emb], axis=-1)

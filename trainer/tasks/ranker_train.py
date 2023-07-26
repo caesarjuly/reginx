@@ -19,8 +19,20 @@ class RankerTrain(BaseTask):
         download_from_directory(BUCKET_NAME, self.hparams.train_data, "/tmp/train")
         download_from_directory(BUCKET_NAME, self.hparams.test_data, "/tmp/test")
         return (
-            tf.data.experimental.load("/tmp/train"),
-            tf.data.experimental.load("/tmp/test"),
+            tf.data.experimental.load(
+                "/tmp/train",
+                compression="GZIP",
+                reader_func=lambda datasets: datasets.interleave(
+                    lambda x: x, num_parallel_calls=tf.data.AUTOTUNE
+                ),
+            ),
+            tf.data.experimental.load(
+                "/tmp/test",
+                compression="GZIP",
+                reader_func=lambda datasets: datasets.interleave(
+                    lambda x: x, num_parallel_calls=tf.data.AUTOTUNE
+                ),
+            ),
         )
 
     def run(self) -> Dict:
@@ -30,24 +42,21 @@ class RankerTrain(BaseTask):
         ]
         ranker = model_factory.get_class(self.hparams.ranker)
         self.model = ranker(self.hparams, *ranking_embs)
-        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-            self.hparams.learning_rate, decay_steps=1000, decay_rate=0.9
-        )
         self.model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=lr_schedule),
+            optimizer=tf.keras.optimizers.Adam(
+                learning_rate=self.hparams.learning_rate
+            ),
             steps_per_execution=1000,
         )
         train = (
             self.train_data.batch(self.hparams.batch_size)
             .shuffle(1_000)
-            .cache()
             .prefetch(tf.data.AUTOTUNE)
         )
 
         test = (
             self.test_data.batch(self.hparams.batch_size)
             .shuffle(1_000)
-            .cache()
             .prefetch(tf.data.AUTOTUNE)
         )
         tensorboard_callback = tf.keras.callbacks.TensorBoard(
@@ -62,7 +71,7 @@ class RankerTrain(BaseTask):
             epochs=self.hparams.epochs,
             callbacks=[tensorboard_callback],
         )
-        # self.model.summary()
+        self.model.summary()
         # evaluate
         return self.model.evaluate(test, return_dict=True)
 
@@ -70,7 +79,7 @@ class RankerTrain(BaseTask):
         # https://github.com/tensorflow/tensorflow/issues/37439#issuecomment-596916472
         data = self.test_data.take(20).batch(20)
         for i in data.as_numpy_iterator():
-            print(i["user_rating"])
+            print(i["label"])
         result = self.model.predict(data)
         print([i[0] for i in result])
         # Save the index.
