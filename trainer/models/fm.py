@@ -12,7 +12,7 @@ class LinearModelWrapper(tfrs.Model):
         super().__init__()
         self.emb_model = emb_model
         self.linear_model = tf.keras.experimental.LinearModel(
-            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001), use_bias=use_bias
+            kernel_regularizer=tf.keras.regularizers.l2(l2=0.0001), use_bias=use_bias
         )
 
     def call(self, features: Dict[Text, tf.Tensor], **kwargs) -> tf.Tensor:

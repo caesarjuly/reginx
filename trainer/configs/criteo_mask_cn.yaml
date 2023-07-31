@@ -1,9 +1,10 @@
 model:
-  ranker: DeepCrossNetwork
+  ranker: MaskCN
   ranking_emb: CriteoRankingEmb
-  layer_sizes: "1024,1024"
-  layer_num: 4
   label: label
+  layer_sizes: "400,400,400"
+  cross_layer_nums: "1,1,1"
+  mask_block_dim: 64
 
 train:
   task_name: RankerTrain

@@ -40,7 +40,7 @@ class CrossNetLayer(tf.keras.layers.Layer):
       - [DCN](https://arxiv.org/pdf/1708.05123.pdf)
     """
 
-    def __init__(self, layer_num=2, l2=0.001, **kwargs):
+    def __init__(self, layer_num=2, l2=0.0001, **kwargs):
         super(CrossNetLayer, self).__init__(**kwargs)
         self.layer_num = layer_num
         self.l2 = l2
@@ -83,6 +83,238 @@ class CrossNetLayer(tf.keras.layers.Layer):
         return tf.squeeze(x_l, axis=2)
 
 
+class CrossNetV2Layer(tf.keras.layers.Layer):
+    """CrossNet v2 models n-order feature interactions using matrix multiplication
+
+    Input shape
+      - 2D tensor with shape: ``(batch_size, embedding_size)``.
+
+    Output shape
+      - 2D tensor with shape: ``(batch_size, embedding_size)``.
+
+    References
+      - [DCN V2](https://arxiv.org/pdf/2008.13535.pdf)
+    """
+
+    def __init__(self, layer_num=2, l2=0.0001, **kwargs):
+        super(CrossNetV2Layer, self).__init__(**kwargs)
+        self.layer_num = layer_num
+        self.l2 = l2
+
+    def build(self, input_shape: tf.Tensor, **kwargs):
+        dim = input_shape[-1]
+        # must provide the name, https://medium.com/dive-into-ml-ai/troubles-with-saving-models-with-custom-layers-in-tensorflow-b31bd5f31a34
+        self.ws = [
+            self.add_weight(
+                name=f"weight_{i}",
+                shape=(dim, dim),
+                regularizer=tf.keras.regularizers.l2(self.l2),
+            )
+            for i in range(self.layer_num)
+        ]
+        self.bs = [
+            self.add_weight(name=f"bias_{i}", shape=(dim, 1), initializer="zeros")
+            for i in range(self.layer_num)
+        ]
+
+    def call(self, inputs, **kwargs):
+        # shape (batch_size, embedding_size, 1)
+        x_0 = tf.expand_dims(inputs, axis=2)
+        x_l = x_0
+        for i in range(self.layer_num):
+            # shape (batch_size, embedding_size, 1)
+            xl_w = tf.matmul(self.ws[i], x_l)
+            # shape (batch_size, embedding_size, 1), Hadamard product
+            cross_term = x_0 * (xl_w + self.bs[i])
+            x_l = cross_term + x_l
+        # shape (batch_size, embedding_size)
+        # we must specify the axis here. Because there is a None dimension and tf don't know if it should be squeeze or not
+        return tf.squeeze(x_l, axis=2)
+
+
+class CrossNetSimpleMixLayer(tf.keras.layers.Layer):
+    """CrossNet v2 models n-order feature interactions using matrix multiplication
+    In the simple version, the weight matrix will be decomposed to 2 low-rank matrices
+
+    Input shape
+      - 2D tensor with shape: ``(batch_size, embedding_size)``.
+
+    Output shape
+      - 2D tensor with shape: ``(batch_size, embedding_size)``.
+
+    References
+      - [DCN V2](https://arxiv.org/pdf/2008.13535.pdf)
+    """
+
+    def __init__(self, layer_num=2, low_rank=None, l2=0.0001, **kwargs):
+        super(CrossNetSimpleMixLayer, self).__init__(**kwargs)
+        self.layer_num = layer_num
+        self.l2 = l2
+        self.low_rank = low_rank
+
+    def build(self, input_shape: tf.Tensor, **kwargs):
+        dim = input_shape[-1]
+        # by default using dim//4 as the rank number, best setting from the paper
+        if self.low_rank is None:
+            self.low_rank = dim // 4
+        # must provide the name, https://medium.com/dive-into-ml-ai/troubles-with-saving-models-with-custom-layers-in-tensorflow-b31bd5f31a34
+        self.Us = [
+            self.add_weight(
+                name=f"U_{i}",
+                shape=(dim, self.low_rank),
+                regularizer=tf.keras.regularizers.l2(self.l2),
+            )
+            for i in range(self.layer_num)
+        ]
+        self.Vs = [
+            self.add_weight(
+                name=f"U_{i}",
+                shape=(dim, self.low_rank),
+                regularizer=tf.keras.regularizers.l2(self.l2),
+            )
+            for i in range(self.layer_num)
+        ]
+        self.bs = [
+            self.add_weight(name=f"bias_{i}", shape=(dim, 1), initializer="zeros")
+            for i in range(self.layer_num)
+        ]
+
+    def call(self, inputs, **kwargs):
+        # shape (batch_size, embedding_size, 1)
+        x_0 = tf.expand_dims(inputs, axis=2)
+        x_l = x_0
+        for i in range(self.layer_num):
+            # shape (batch_size, low_rank, 1)
+            xl_v = tf.matmul(self.Vs[i], x_l, transpose_a=True)
+            # shape (batch_size, embedding_size, 1)
+            xl_u = tf.matmul(self.Us[i], xl_v)
+            # shape (batch_size, embedding_size, 1), Hadamard product
+            cross_term = x_0 * (xl_u + self.bs[i])
+            x_l = cross_term + x_l
+        # shape (batch_size, embedding_size)
+        # we must specify the axis here. Because there is a None dimension and tf don't know if it should be squeeze or not
+        return tf.squeeze(x_l, axis=2)
+
+
+class CrossNetGatingMixLayer(tf.keras.layers.Layer):
+    """CrossNet mix models n-order feature interactions using matrix multiplication
+    1. Project weight matrix to subspaces and add non-linear transformations
+    2. Use MOE to learn feature interactions in different subspaces
+    3. Support 3 kinds of gating functions: constant, sigmoid and softmax
+    4. Support 2 kinds of activation functions for transformations: identity and tanh
+
+    Input shape
+      - 2D tensor with shape: ``(batch_size, embedding_size)``.
+
+    Output shape
+      - 2D tensor with shape: ``(batch_size, embedding_size)``.
+
+    References
+      - [DCN V2](https://arxiv.org/pdf/2008.13535.pdf)
+    """
+
+    def __init__(
+        self,
+        layer_num=3,
+        expert_num=4,
+        low_rank=None,
+        gate_func="softmax",
+        activation="tanh",
+        l2=0.0001,
+        **kwargs,
+    ):
+        super(CrossNetGatingMixLayer, self).__init__(**kwargs)
+        self.layer_num = layer_num
+        self.l2 = l2
+        self.expert_num = expert_num
+        self.low_rank = low_rank
+        self.gate_func = gate_func
+        self.activation = activation
+
+    def build(self, input_shape: tf.Tensor, **kwargs):
+        dim = input_shape[-1]
+        # by default using dim//4 as the rank number, best setting from the paper
+        if self.low_rank is None:
+            self.low_rank = dim // 4
+        # must provide the name, https://medium.com/dive-into-ml-ai/troubles-with-saving-models-with-custom-layers-in-tensorflow-b31bd5f31a34
+        self.Us = [
+            self.add_weight(
+                name=f"U_{i}",
+                shape=(self.expert_num, dim, self.low_rank),
+                regularizer=tf.keras.regularizers.l2(self.l2),
+            )
+            for i in range(self.layer_num)
+        ]
+        self.Cs = [
+            self.add_weight(
+                name=f"C_{i}",
+                shape=(self.expert_num, self.low_rank, self.low_rank),
+                regularizer=tf.keras.regularizers.l2(self.l2),
+            )
+            for i in range(self.layer_num)
+        ]
+        self.Vs = [
+            self.add_weight(
+                name=f"V_{i}",
+                shape=(self.expert_num, dim, self.low_rank),
+                regularizer=tf.keras.regularizers.l2(self.l2),
+            )
+            for i in range(self.layer_num)
+        ]
+        self.gates = [
+            [tf.keras.layers.Dense(1, use_bias=False) for _ in range(self.expert_num)]
+            for _ in range(self.layer_num)
+        ]
+        self.bs = [
+            self.add_weight(name=f"bias_{i}", shape=(dim, 1), initializer="zeros")
+            for i in range(self.layer_num)
+        ]
+
+    def call(self, inputs, **kwargs):
+        # shape (batch_size, embedding_size, 1)
+        x_0 = tf.expand_dims(inputs, axis=2)
+        x_l = x_0
+        for i in range(self.layer_num):
+            experts = []
+            gating_scores = []
+            for j in range(self.expert_num):
+                # calculate the expert features
+                # shape (batch_size, low_rank, 1)
+                xl_v = tf.matmul(self.Vs[i][j], x_l, transpose_a=True)
+                if self.activation == "tanh":
+                    xl_v = tf.nn.tanh(xl_v)
+                # shape (batch_size, low_rank, 1)
+                xl_c = tf.matmul(self.Cs[i][j], xl_v)
+                if self.activation == "tanh":
+                    xl_c = tf.nn.tanh(xl_c)
+                # shape (batch_size, embedding_size, 1)
+                xl_u = tf.matmul(self.Us[i][j], xl_c)
+                # shape (batch_size, embedding_size, 1), Hadamard product
+                cross_term = x_0 * (xl_u + self.bs[i])
+                # shape [(batch_size, embedding_size)]
+                experts.append(tf.squeeze(cross_term, axis=2))
+
+                # calculate the gating score
+                # shape [(batch_size, 1)]
+                gating_scores.append(self.gates[i][j](tf.squeeze(x_l, axis=2)))
+            # mix all the experts
+            # shape (batch_size, embedding_size, expert_num)
+            experts = tf.stack(experts, axis=2)
+            # shape (batch_size, expert_num, 1)
+            gate_scores = tf.stack(gating_scores, axis=1)
+            if self.gate_func == "sigmoid":
+                gate_scores = tf.nn.sigmoid(gate_scores)
+            elif self.gate_func == "softmax":
+                gate_scores = tf.nn.softmax(gate_scores, axis=-1)
+            # shape (batch_size, embedding_size, 1)
+            moe_output = tf.matmul(experts, gate_scores)
+            # shape (batch_size, embedding_size, 1)
+            x_l = moe_output + x_l
+        # shape (batch_size, embedding_size)
+        # we must specify the axis here. Because there is a None dimension and tf don't know if it should be squeeze or not
+        return tf.squeeze(x_l, axis=2)
+
+
 class CINLayer(tf.keras.layers.Layer):
     """Compressed Interaction Network from xDeepFM paper, it contains 3 steps:
     1. outer product to generate field-wise feature interactions
@@ -103,7 +335,7 @@ class CINLayer(tf.keras.layers.Layer):
         self,
         layer_sizes=(100, 100, 100),
         activation=None,
-        l2=0.001,
+        l2=0.0001,
         split_half=True,
         **kwargs,
     ):

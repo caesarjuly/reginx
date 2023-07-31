@@ -18,7 +18,7 @@ class DNNLayer(tf.keras.layers.Layer):
         activation="relu",
         use_bn=True,
         dropout=0.0,
-        l2=0.001,
+        l2=0.0001,
         **kwargs
     ):
         super(DNNLayer, self).__init__(**kwargs)

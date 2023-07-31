@@ -1,9 +1,11 @@
 model:
-  ranker: DeepCrossNetwork
+  ranker: DeepCrossNetworkV2
   ranking_emb: CriteoRankingEmb
-  layer_sizes: "1024,1024"
-  layer_num: 4
+  layer_sizes: "768,768"
+  layer_num: 2
+  mode: parallel
   label: label
+  cross_net: default
 
 train:
   task_name: RankerTrain

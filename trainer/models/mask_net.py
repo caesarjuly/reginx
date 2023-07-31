@@ -15,19 +15,17 @@ class InstanceGuidedMask(tf.keras.layers.Layer):
     """
 
     def __init__(
-        self,
-        output_dim: int,
-        reduction_ratio: float = 2.0,
+        self, output_dim: int, reduction_ratio: float = 2.0, l2: float = 0.0001
     ):
         super().__init__()
         self.aggregation = tf.keras.layers.Dense(
             output_dim * reduction_ratio,
-            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+            kernel_regularizer=tf.keras.regularizers.l2(l2=l2),
         )
         self.relu = tf.keras.layers.Activation("relu")
         self.projection = tf.keras.layers.Dense(
             output_dim,
-            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+            kernel_regularizer=tf.keras.regularizers.l2(l2=l2),
         )
 
     def call(self, feat_emb, training=False):
@@ -89,7 +87,7 @@ class MaskNet(tfrs.Model):
                     tf.keras.layers.Dense(
                         1,
                         activation="sigmoid",
-                        kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+                        kernel_regularizer=tf.keras.regularizers.l2(l2=0.0001),
                     ),
                 ]
             )
@@ -97,7 +95,7 @@ class MaskNet(tfrs.Model):
             self.dense = tf.keras.layers.Dense(
                 1,
                 "sigmoid",
-                kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+                kernel_regularizer=tf.keras.regularizers.l2(l2=0.0001),
             )
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:

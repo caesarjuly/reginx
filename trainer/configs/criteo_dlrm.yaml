@@ -2,7 +2,7 @@ model:
   ranker: DLRM
   ranking_emb: "CriteoSparseEmb, CriteoDenseEmb"
   bottom_layer_sizes: "512,256,64,16"
-  top_layer_sizes: "512,256"
+  top_layer_sizes: "768,768"
   label: label
 
 train:

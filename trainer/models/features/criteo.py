@@ -53,6 +53,42 @@ class CriteoDenseAsWeightEmb(tfrs.Model):
         return dense_weights * self.dense_emb
 
 
+# Used as the linear weights for wide part
+class CriteoSparseLinearEmb(tfrs.Model):
+    def __init__(self, meta: Dict):
+        super().__init__()
+        self.total_sparse = 26
+        self.embs = [
+            tf.keras.Sequential(
+                [
+                    tf.keras.layers.Hashing(
+                        num_bins=meta[f"sparse_{i}"]["unique"] // 5
+                    ),
+                    tf.keras.layers.Embedding(meta[f"sparse_{i}"]["unique"] // 5, 1),
+                ]
+            )
+            if meta[f"sparse_{i}"]["unique"] > 5_000_000
+            else tf.keras.Sequential(
+                [
+                    tf.keras.layers.StringLookup(
+                        vocabulary=meta[f"sparse_{i}"]["vocab"]
+                    ),
+                    tf.keras.layers.Embedding(meta[f"sparse_{i}"]["unique"], 1),
+                ]
+            )
+            for i in range(1, self.total_sparse + 1)
+        ]
+
+    def call(self, inputs, training=False):
+        return tf.concat(
+            [
+                self.embs[i - 1](inputs[f"sparse_{i}"])
+                for i in range(1, self.total_sparse + 1)
+            ],
+            axis=-1,
+        )
+
+
 class CriteoSparseEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()

@@ -1,6 +1,6 @@
 model:
   ranker: DeepFM
-  ranking_emb: "CriteoSparseEmb, CriteoDenseEmb"
+  ranking_emb: "CriteoSparseEmb,CriteoDenseEmb"
   layer_sizes: "512,256,64,1"
   label: label
 

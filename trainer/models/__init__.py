@@ -13,6 +13,8 @@ from trainer.models.dcn import *
 from trainer.models.xdeepfm import *
 from trainer.models.autoint import *
 from trainer.models.dlrm import *
+from trainer.models.dcn_v2 import *
+from trainer.models.mask_cn import *
 
 model_factory = Factory()
 model_factory.register_all_subclasses(tfrs.Model)

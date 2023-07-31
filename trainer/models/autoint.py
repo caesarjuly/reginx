@@ -37,7 +37,7 @@ class AutoInt(tfrs.Model):
         self.prediction = tf.keras.layers.Dense(
             1,
             activation="sigmoid",
-            kernel_regularizer=tf.keras.regularizers.l2(l2=0.001),
+            kernel_regularizer=tf.keras.regularizers.l2(l2=0.0001),
         )
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
