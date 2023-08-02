@@ -4,7 +4,7 @@ model:
   label: label
   layer_sizes: "400,400,400"
   cross_layer_nums: "1,1,1"
-  mask_block_dim: 64
+  mask_block_dim: 256
 
 train:
   task_name: RankerTrain

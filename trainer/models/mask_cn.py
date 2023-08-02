@@ -22,8 +22,8 @@ class CrossNetBlock(tf.keras.layers.Layer):
         self.cn = CrossNetV2Layer(layer_num=cross_layer_num)
 
     def call(self, inputs, training=False):
-        masked_emb = self.cn(inputs, training=training)
-        return self.relu(self.ln(self.dense(masked_emb)))
+        crossed_emb = self.cn(inputs, training=training)
+        return self.relu(self.ln(self.dense(crossed_emb)))
 
 
 class MaskCN(tfrs.Model):

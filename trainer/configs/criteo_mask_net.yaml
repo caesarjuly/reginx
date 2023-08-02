@@ -3,7 +3,7 @@ model:
   ranking_emb: CriteoRankingEmb
   label: label
   layer_sizes: "400,400,400"
-  mask_block_dim: 64
+  mask_block_dim: 256
   mode: parallel
   mask_block_num: 3
   reduction_ratio: 2
