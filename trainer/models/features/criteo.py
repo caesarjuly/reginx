@@ -7,21 +7,30 @@ class CriteoDenseEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         self.total_dense = 13
-        self.norms = [
-            tf.keras.layers.Normalization(
+        self.norms = {
+            f"dense_{i}": tf.keras.layers.Normalization(
                 mean=meta[f"dense_{i}"]["mean"], variance=meta[f"dense_{i}"]["std"]
             )
             for i in range(1, self.total_dense + 1)
-        ]
+        }
 
-    def call(self, inputs, training=False):
-        return tf.concat(
-            [
-                self.norms[i - 1](tf.reshape(inputs[f"dense_{i}"], [-1, 1]))
-                for i in range(1, self.total_dense + 1)
-            ],
-            axis=-1,
-        )
+    def call(self, inputs, feature_names=None, training=False):
+        if feature_names:
+            return tf.concat(
+                [
+                    self.norms[name](tf.reshape(inputs[name], [-1, 1]))
+                    for name in feature_names
+                ],
+                axis=-1,
+            )
+        else:
+            return tf.concat(
+                [
+                    self.norms[f"dense_{i}"](tf.reshape(inputs[f"dense_{i}"], [-1, 1]))
+                    for i in range(1, self.total_dense + 1)
+                ],
+                axis=-1,
+            )
 
 
 class CriteoDenseAsWeightEmb(tfrs.Model):
@@ -93,8 +102,8 @@ class CriteoSparseEmb(tfrs.Model):
     def __init__(self, meta: Dict):
         super().__init__()
         self.total_sparse = 26
-        self.embs = [
-            tf.keras.Sequential(
+        self.embs = {
+            f"sparse_{i}": tf.keras.Sequential(
                 [
                     tf.keras.layers.Hashing(
                         num_bins=meta[f"sparse_{i}"]["unique"] // 5
@@ -112,16 +121,22 @@ class CriteoSparseEmb(tfrs.Model):
                 ]
             )
             for i in range(1, self.total_sparse + 1)
-        ]
+        }
 
-    def call(self, inputs, training=False):
-        return tf.stack(
-            [
-                self.embs[i - 1](inputs[f"sparse_{i}"])
-                for i in range(1, self.total_sparse + 1)
-            ],
-            axis=1,
-        )
+    def call(self, inputs, feature_names=None, training=False):
+        if feature_names:
+            return tf.stack(
+                [self.embs[name](inputs[name]) for name in feature_names],
+                axis=1,
+            )
+        else:
+            return tf.stack(
+                [
+                    self.embs[f"sparse_{i}"](inputs[f"sparse_{i}"])
+                    for i in range(1, self.total_sparse + 1)
+                ],
+                axis=1,
+            )
 
 
 class CriteoRankingEmb(tfrs.Model):

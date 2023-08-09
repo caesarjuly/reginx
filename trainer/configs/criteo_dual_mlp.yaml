@@ -1,0 +1,17 @@
+model:
+  ranker: DualMLP
+  ranking_emb: CriteoRankingEmb
+  layer_sizes1: "400,400,400"
+  layer_sizes2: "400,400,400"
+  label: label
+
+train:
+  task_name: RankerTrain
+  epochs: 1
+  batch_size: 512
+  learning_rate: 0.0001
+  train_data: criteo/train/7_days_train_samples
+  test_data: criteo/train/day_7_sample_small
+  meta_data: trainer/meta/criteo.json
+  model_dir: trainer/saved_models/criteo_ranker
+  log_dir: logs

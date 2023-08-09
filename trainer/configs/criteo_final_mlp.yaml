@@ -1,0 +1,21 @@
+model:
+  ranker: FinalMLP
+  ranking_emb: "CriteoSparseEmb,CriteoDenseEmb"
+  hidden_dims: "800"
+  fs_context1: "dense_1,dense_2,dense_3,dense_4,dense_5,dense_6,dense_7,dense_8,dense_9,dense_10,dense_11,dense_12,dense_13"
+  fs_context2: "sparse_6"
+  layer_sizes1: "400,400,400"
+  layer_sizes2: "1000"
+  head_num: 200
+  label: label
+
+train:
+  task_name: RankerTrain
+  epochs: 1
+  batch_size: 512
+  learning_rate: 0.0001
+  train_data: criteo/train/7_days_train_samples
+  test_data: criteo/train/day_7_sample_small
+  meta_data: trainer/meta/criteo.json
+  model_dir: trainer/saved_models/criteo_ranker
+  log_dir: logs

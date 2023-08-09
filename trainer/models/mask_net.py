@@ -2,63 +2,9 @@ from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from trainer.models.common.basic_layers import DNNLayer
+from trainer.models.common.feature_cross import MaskBlock
 
 from trainer.util.tools import ObjectDict
-
-
-class InstanceGuidedMask(tf.keras.layers.Layer):
-    """Generate mask for instance (input feature embedding or hidden layer output)
-
-    Args:
-        output_dim: output dimension
-        reduction_ratio: aggregation_dim/projection_dim
-    """
-
-    def __init__(
-        self, output_dim: int, reduction_ratio: float = 2.0, l2: float = 0.0001
-    ):
-        super().__init__()
-        self.aggregation = tf.keras.layers.Dense(
-            output_dim * reduction_ratio,
-            kernel_regularizer=tf.keras.regularizers.l2(l2=l2),
-        )
-        self.relu = tf.keras.layers.Activation("relu")
-        self.projection = tf.keras.layers.Dense(
-            output_dim,
-            kernel_regularizer=tf.keras.regularizers.l2(l2=l2),
-        )
-
-    def call(self, feat_emb, training=False):
-        return self.projection(self.relu(self.aggregation(feat_emb)))
-
-
-class MaskBlock(tf.keras.layers.Layer):
-    """MaskBlock combine InstanceGuidedMask with LayerNorm and FC layer"""
-
-    def __init__(
-        self,
-        hparams: ObjectDict,
-    ):
-        super().__init__()
-        self.hparams = hparams
-        self.ln = tf.keras.layers.LayerNormalization()
-        self.relu = tf.keras.layers.Activation("relu")
-
-    def build(self, input_shape: tf.Tensor):
-        _, hidden_emb_shape = input_shape
-        # The output dimension must be the same as the input embedding dimension
-        self.instance_guided_mask = InstanceGuidedMask(
-            output_dim=hidden_emb_shape[-1],
-            reduction_ratio=self.hparams.reduction_ratio,
-        )
-        self.dense = tf.keras.layers.Dense(self.hparams.mask_block_dim)
-
-    def call(self, inputs, training=False):
-        # feat_emb for calculating the mask
-        # hidden_emb as the input, could be either feature embedding or hidden layer output
-        feat_emb, hidden_emb = inputs
-        masked_emb = self.instance_guided_mask(feat_emb, training=training) * hidden_emb
-        return self.relu(self.ln(self.dense(masked_emb)))
 
 
 class MaskNet(tfrs.Model):

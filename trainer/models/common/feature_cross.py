@@ -1,4 +1,7 @@
 import tensorflow as tf
+from trainer.models.common.basic_layers import DNNLayer
+
+from trainer.util.tools import ObjectDict
 
 
 class FMLayer(tf.keras.layers.Layer):
@@ -502,3 +505,156 @@ class MultiHeadSelfAttentionLayer(tf.keras.layers.Layer):
             outputs += tf.matmul(inputs, self.W_Res)
         outputs = tf.nn.relu(outputs)
         return outputs
+
+
+class InstanceGuidedMask(tf.keras.layers.Layer):
+    """Generate mask for instance (input feature embedding or hidden layer output)
+
+    Args:
+        output_dim: output dimension
+        reduction_ratio: aggregation_dim/projection_dim
+    """
+
+    def __init__(
+        self, output_dim: int, reduction_ratio: float = 2.0, l2: float = 0.0001
+    ):
+        super().__init__()
+        self.aggregation = tf.keras.layers.Dense(
+            output_dim * reduction_ratio,
+            kernel_regularizer=tf.keras.regularizers.l2(l2=l2),
+        )
+        self.relu = tf.keras.layers.Activation("relu")
+        self.projection = tf.keras.layers.Dense(
+            output_dim,
+            kernel_regularizer=tf.keras.regularizers.l2(l2=l2),
+        )
+
+    def call(self, feat_emb, training=False):
+        return self.projection(self.relu(self.aggregation(feat_emb)))
+
+
+class MaskBlock(tf.keras.layers.Layer):
+    """MaskBlock combine InstanceGuidedMask with LayerNorm and FC layer"""
+
+    def __init__(
+        self,
+        hparams: ObjectDict,
+    ):
+        super().__init__()
+        self.hparams = hparams
+        self.ln = tf.keras.layers.LayerNormalization()
+        self.relu = tf.keras.layers.Activation("relu")
+
+    def build(self, input_shape: tf.Tensor):
+        _, hidden_emb_shape = input_shape
+        # The output dimension must be the same as the input embedding dimension
+        self.instance_guided_mask = InstanceGuidedMask(
+            output_dim=hidden_emb_shape[-1],
+            reduction_ratio=self.hparams.reduction_ratio,
+        )
+        self.dense = tf.keras.layers.Dense(self.hparams.mask_block_dim)
+
+    def call(self, inputs, training=False):
+        # feat_emb for calculating the mask
+        # hidden_emb as the input, could be either feature embedding or hidden layer output
+        feat_emb, hidden_emb = inputs
+        masked_emb = self.instance_guided_mask(feat_emb, training=training) * hidden_emb
+        return self.relu(self.ln(self.dense(masked_emb)))
+
+
+class FeatureSelectionLayer(tf.keras.layers.Layer):
+    """FeatureSelection perform feature gating from different views via conditioning on learnable parameters, user features, or item features
+
+    Input shape
+      - two 2D tensor with shape: ``(batch_size, embedding_size)`` and ``(batch_size, selected_embedding_size)``.
+
+    Output shape
+      - 2D tensor with shape: ``(batch_size, embedding_size)``.
+
+    References
+      - [Final MLP](https://arxiv.org/pdf/2304.00902.pdf)
+    """
+
+    def __init__(self, hidden_dims=[800], l2: float = 0.0001, **kwargs):
+        super(FeatureSelectionLayer, self).__init__(**kwargs)
+        self.hidden_dims = hidden_dims
+        self.l2 = l2
+
+    def build(self, input_shape: tf.Tensor):
+        input_feature_shape, _ = input_shape
+        input_emb_dim = input_feature_shape[-1]
+        self.hidden = DNNLayer(layer_sizes=self.hidden_dims, use_bn=False, l2=self.l2)
+        self.dense = tf.keras.layers.Dense(
+            input_emb_dim,
+            activation="sigmoid",
+            kernel_regularizer=tf.keras.regularizers.l2(l2=self.l2),
+        )
+
+    def call(self, inputs, **kwargs):
+        input_emb, selected_emb = inputs
+        # shape [batch_size, input_emb_size]
+        gate = self.dense(self.hidden(selected_emb))
+        return input_emb * gate * 2
+
+
+class InteractionAggregationLayer(tf.keras.layers.Layer):
+    """Multi-head bilinear fusion project the interaction matrix into subspaces and aggregation the result by sum pooling
+
+    Input shape
+      - two 2D tensor with shape: ``(batch_size, embedding_size1)`` and ``(batch_size, embedding_size2)``.
+
+    Output shape
+      - 2D tensor with shape: ``(batch_size, 1)``.
+
+    References
+      - [Final MLP](https://arxiv.org/pdf/2304.00902.pdf)
+    """
+
+    def __init__(self, head_num=1, l2: float = 0.0001, **kwargs):
+        super(InteractionAggregationLayer, self).__init__(**kwargs)
+        self.head_num = head_num
+        self.l2 = l2
+
+    def build(self, input_shape: tf.Tensor):
+        input_shape_x, input_shape_y = input_shape
+        assert (
+            input_shape_x[-1] % self.head_num == 0
+            and input_shape_y[-1] % self.head_num == 0
+        ), "Input dim must be divisible by num_heads!"
+        self.x_head_dim = input_shape_x[-1] // self.head_num
+        self.y_head_dim = input_shape_y[-1] // self.head_num
+        self.x_weight = self.add_weight(
+            name=f"x_weight",
+            shape=(input_shape_x[-1], 1),
+            regularizer=tf.keras.regularizers.l2(self.l2),
+        )
+        self.y_weight = self.add_weight(
+            name=f"y_weight",
+            shape=(input_shape_y[-1], 1),
+            regularizer=tf.keras.regularizers.l2(self.l2),
+        )
+        self.x_y_weight = self.add_weight(
+            name=f"x_y_weight",
+            shape=(self.head_num, self.x_head_dim, self.y_head_dim),
+            regularizer=tf.keras.regularizers.l2(self.l2),
+        )
+
+    def call(self, inputs, **kwargs):
+        # shape [batch_size, x_emb_size], [batch_size, y_emb_size]
+        x, y = inputs
+        # shape [batch_size, 1]
+        output = tf.matmul(x, self.x_weight) + tf.matmul(y, self.y_weight)
+        # shape [batch_size, head_num, 1, x_head_dim]
+        x_head = tf.reshape(x, shape=[-1, self.head_num, 1, self.x_head_dim])
+        # shape [batch_size, head_num, 1, y_head_dim]
+        y_head = tf.reshape(y, shape=[-1, self.head_num, 1, self.y_head_dim])
+
+        # shape [batch_size, head_num, 1, y_head_dim], notice here we are doing a pair multiplication on [1, x_head_dim] and [x_head_dim, y_head_dim]
+        x_y = tf.matmul(x_head, self.x_y_weight)
+        # shape [batch_size, head_num, 1, 1], notice here we are doing a pair multiplication on [1, y_head_dim] and [y_head_dim, 1]
+        x_y = tf.matmul(x_y, y_head, transpose_b=True)
+        # shape [batch_size, head_num], specify the axis here so that tensorflow can automatically infer the shape
+        x_y = tf.squeeze(x_y, axis=[2, 3])
+        # shape [batch_size, 1]
+        x_y = tf.reduce_sum(x_y, axis=-1, keepdims=True)
+        return output + x_y
