@@ -58,7 +58,7 @@ class MaskNet(tfrs.Model):
                         )
                     )
                 )
-                return self.dense(tf.concat(block_out, -1))
+            return self.dense(tf.concat(block_out, -1))
         else:
             # In serial mode, the feature embedding is for mask calculation, the hidden embedding is the input for next MaskBlock
             hidden_emb = feat_emb
