@@ -425,7 +425,7 @@ class MultiHeadSelfAttentionLayer(tf.keras.layers.Layer):
       - 3D tensor with shape: ``(batch_size, field_size, embedding_size)``.
 
     Output shape
-      - 2D tensor with shape: ``(batch_size, field_size, head_dim * head_num)``.
+      - 3D tensor with shape: ``(batch_size, field_size, head_dim * head_num)``.
 
     References
       - [AutoInt](https://arxiv.org/pdf/1810.11921.pdf)
