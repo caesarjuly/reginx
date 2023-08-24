@@ -248,3 +248,320 @@ class MultiHeadSelfAttentionLayer(tf.keras.layers.Layer):
         return tf.linalg.band_part(  # creates a lower triangular matrix
             tf.ones((1, q_seq_length, v_seq_length), tf.bool), -1, 0
         )
+
+    def get_config(self):
+        # to make save and load a model using custom layer possible
+        config = super().get_config()
+        config.update(
+            {
+                "head_num": self.head_num,
+                "key_dim": self.key_dim,
+                "val_dim": self.val_dim,
+                "dropout": self.dropout,
+            }
+        )
+        return config
+
+
+class Encoder(tf.keras.layers.Layer):
+    """The Transformer Encoder consists of
+    multi-head attention layer -> add & normalization layer ->
+        MLP layer -> add & normalization layer
+
+    Input shape
+      - 3D tensor with shape ``(batch_size, token_length, embedding_size)``.
+
+    Output shape
+      - 3D tensor with shape: ``(batch_size, token_length, embedding_size)``.
+
+    References
+        - [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)
+    """
+
+    def __init__(
+        self,
+        model_dim=512,
+        ff_dim=2048,
+        dropout=0.1,
+        head_num=8,
+        **kwargs,
+    ):
+        super(Encoder, self).__init__(**kwargs)
+        assert model_dim % head_num == 0, "model_dim need to be divisible by head_num"
+        self.model_dim = model_dim
+        self.ff_dim = ff_dim
+        self.dropout = dropout
+        self.head_num = head_num
+        self.norm1 = tf.keras.layers.LayerNormalization()
+        self.norm2 = tf.keras.layers.LayerNormalization()
+        # dropout layers are applied before residual and normalization layer
+        self.dropout1 = tf.keras.layers.Dropout(dropout)
+        self.dropout2 = tf.keras.layers.Dropout(dropout)
+        self.dense1 = tf.keras.layers.Dense(ff_dim, activation="relu")
+        self.dense2 = tf.keras.layers.Dense(model_dim, activation="relu")
+        # get key_dim
+        key_dim = model_dim // head_num
+        self.attention = MultiHeadSelfAttentionLayer(
+            head_num=head_num, key_dim=key_dim, dropout=dropout
+        )
+
+    def call(self, input, **kwargs):
+        # shape [batch_size, token_length, embedding_size]
+        attention_output = self.norm1(
+            input + self.dropout1(self.attention(input, input, input, **kwargs)),
+            **kwargs,
+        )
+        dense_output = self.dropout2(self.dense2(self.dense1(attention_output)))
+        output = self.norm2(attention_output + dense_output, **kwargs)
+        return output
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "head_num": self.head_num,
+                "model_dim": self.model_dim,
+                "ff_dim": self.ff_dim,
+                "dropout": self.dropout,
+                "head_num": self.head_num,
+            }
+        )
+        return config
+
+
+class Decoder(tf.keras.layers.Layer):
+    """The Transformer Decoder consists of
+    self attention layer -> add & normalization layer ->
+        cross attention layer -> add & normalization layer ->
+            MLP layer -> add & normalization layer
+
+    Input shape
+      Notice that the key and value are from the output of encoder
+      - encoder_output: 3D tensor with shape ``(batch_size, key_length, embedding_size)``.
+      - decoder_input: 3D tensor with shape ``(batch_size, query_length, embedding_size)``.
+
+    Output shape
+      - 3D tensor with shape: ``(batch_size, token_length, embedding_size)``.
+
+    References
+        - [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)
+    """
+
+    def __init__(
+        self,
+        model_dim=512,
+        ff_dim=2048,
+        dropout=0.1,
+        head_num=8,
+        **kwargs,
+    ):
+        super(Decoder, self).__init__(**kwargs)
+        assert model_dim % head_num == 0, "model_dim need to be divisible by head_num"
+        self.model_dim = model_dim
+        self.ff_dim = ff_dim
+        self.dropout = dropout
+        self.head_num = head_num
+        self.norm1 = tf.keras.layers.LayerNormalization()
+        self.norm2 = tf.keras.layers.LayerNormalization()
+        self.norm3 = tf.keras.layers.LayerNormalization()
+        # dropout layers are applied before residual and normalization layer
+        self.dropout1 = tf.keras.layers.Dropout(dropout)
+        self.dropout2 = tf.keras.layers.Dropout(dropout)
+        self.dropout3 = tf.keras.layers.Dropout(dropout)
+        self.dense1 = tf.keras.layers.Dense(ff_dim, activation="relu")
+        self.dense2 = tf.keras.layers.Dense(model_dim, activation="relu")
+        # get key_dim
+        key_dim = model_dim // head_num
+        self.self_attention = MultiHeadSelfAttentionLayer(
+            head_num=head_num, key_dim=key_dim, dropout=dropout
+        )
+        self.cross_attention = MultiHeadSelfAttentionLayer(
+            head_num=head_num, key_dim=key_dim, dropout=dropout
+        )
+
+    def call(self, encoder_output, decoder_input, **kwargs):
+        # shape [batch_size, query_length, embedding_size]
+        self_attention_output = self.norm1(
+            decoder_input
+            + self.dropout1(
+                self.self_attention(
+                    decoder_input,
+                    decoder_input,
+                    decoder_input,
+                    use_causal_mask=True,
+                    **kwargs,
+                )
+            ),
+            **kwargs,
+        )
+        # query is from the output of previous self attention layer
+        cross_attention_output = self.norm2(
+            self_attention_output
+            + self.dropout2(
+                self.cross_attention(
+                    self_attention_output, encoder_output, encoder_output, **kwargs
+                )
+            ),
+            **kwargs,
+        )
+        dense_output = self.dropout3(self.dense2(self.dense1(cross_attention_output)))
+        output = self.norm3(cross_attention_output + dense_output, **kwargs)
+        return output
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "head_num": self.head_num,
+                "model_dim": self.model_dim,
+                "ff_dim": self.ff_dim,
+                "dropout": self.dropout,
+                "head_num": self.head_num,
+            }
+        )
+        return config
+
+
+class Transformer(tf.keras.layers.Layer):
+    """The Transformer consists of multiple layers of encoder and decoder
+
+    Input shape
+      - 3D tensor with shape ``(batch_size, token_length)``.
+
+    Output shape
+      - 3D tensor with shape: ``(batch_size, token_length, vocab_size_logits)``.
+
+    References
+        - [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)
+    """
+
+    def __init__(
+        self,
+        src_vocab_size,
+        target_vocab_size,
+        seq_length,
+        layer_num=6,
+        model_dim=512,
+        ff_dim=2048,
+        dropout=0.1,
+        head_num=8,
+        **kwargs,
+    ):
+        super(Transformer, self).__init__(**kwargs)
+        assert model_dim % head_num == 0, "model_dim need to be divisible by head_num"
+        self.src_vocab_size = src_vocab_size
+        self.target_vocab_size = target_vocab_size
+        self.seq_length = seq_length
+        self.layer_num = layer_num
+        self.model_dim = model_dim
+        self.ff_dim = ff_dim
+        self.dropout = dropout
+        self.head_num = head_num
+
+        self.src_emb = PositionalEmbedding(
+            vocab_size=src_vocab_size, length=seq_length, dim=model_dim
+        )
+        self.target_emb = PositionalEmbedding(
+            vocab_size=target_vocab_size, length=seq_length, dim=model_dim
+        )
+        self.encoders = [
+            Encoder(
+                model_dim=model_dim, ff_dim=ff_dim, dropout=dropout, head_num=head_num
+            )
+            for _ in range(layer_num)
+        ]
+        self.decoders = [
+            Decoder(
+                model_dim=model_dim, ff_dim=ff_dim, dropout=dropout, head_num=head_num
+            )
+            for _ in range(layer_num)
+        ]
+        self.dense = tf.keras.layers.Dense(
+            target_vocab_size, activation=tf.keras.activations.softmax
+        )
+
+    def call(self, src, target, **kwargs):
+        # shape [batch_size, token_length]
+        src_emb = self.src_emb(src, **kwargs)
+        target_emb = self.target_emb(target, **kwargs)
+        # shape [batch_size, token_length, model_dim]
+        for encoder in self.encoders:
+            src_emb = encoder(src_emb, **kwargs)
+        for decoder in self.decoders:
+            # notice we only use casual masking in the first decoder
+            target_emb = decoder(src_emb, target_emb, **kwargs)
+        # shape [batch_size, token_length, vocab_size_logits]
+        return self.dense(target_emb)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "src_vocab_size": self.src_vocab_size,
+                "target_vocab_size": self.target_vocab_size,
+                "layer_num": self.layer_num,
+                "seq_length": self.seq_length,
+                "model_dim": self.model_dim,
+                "ff_dim": self.ff_dim,
+                "dropout": self.dropout,
+                "head_num": self.head_num,
+            }
+        )
+        return config
+
+
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self, model_dim, warmup_steps=4000):
+        super().__init__()
+
+        self.model_dim = model_dim
+        self.model_dim = tf.cast(self.model_dim, tf.float32)
+
+        self.warmup_steps = warmup_steps
+
+    def __call__(self, step):
+        step = tf.cast(step, dtype=tf.float32)
+        arg1 = tf.math.rsqrt(step)
+        arg2 = step * (self.warmup_steps**-1.5)
+
+        return tf.math.rsqrt(self.model_dim) * tf.math.minimum(arg1, arg2)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "model_dim": self.model_dim,
+                "warmup_steps": self.warmup_steps,
+            }
+        )
+        return config
+
+
+def masked_loss(label, pred):
+    mask = label != 0
+    loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
+        from_logits=False, reduction="none"
+    )
+    loss = loss_object(label, pred)
+
+    # mask indices where label == 0 (padding)
+    mask = tf.cast(mask, dtype=loss.dtype)
+    loss *= mask
+
+    loss = tf.reduce_sum(loss) / tf.reduce_sum(mask)
+    return loss
+
+
+def masked_accuracy(label, pred):
+    # get the prediction index for target token
+    pred = tf.argmax(pred, axis=2)
+    label = tf.cast(label, pred.dtype)
+    match = label == pred
+
+    mask = label != 0
+
+    match = match & mask
+
+    match = tf.cast(match, dtype=tf.float32)
+    mask = tf.cast(mask, dtype=tf.float32)
+    return tf.reduce_sum(match) / tf.reduce_sum(mask)

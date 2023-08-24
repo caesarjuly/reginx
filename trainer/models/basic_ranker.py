@@ -36,17 +36,11 @@ class BasicRanker(tfrs.Model):
     def compute_loss(
         self, features: Dict[Text, tf.Tensor], training=False
     ) -> tf.Tensor:
-        labels = tf.expand_dims(
-            tf.where(features[self.hparams.label] > 0, 1, 0), axis=-1
-        )
+        labels = features[self.hparams.label]
+        rating_predictions = self(features, training=training)
         sample_weight = (
-            tf.expand_dims(
-                tf.where(
-                    features[self.hparams.label] > 0, features[self.hparams.label], 1
-                ),
-                axis=-1,
-            )
-            if training
+            features[self.hparams.sample_weight]
+            if training and "sample_weight" in self.hparams
             else None
         )
 

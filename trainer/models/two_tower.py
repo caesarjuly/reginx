@@ -13,11 +13,11 @@ class DenseModel(tf.keras.Model):
         emb_model: tf.keras.Model,
     ):
         super().__init__()
-        self.deep = (DNNLayer(layer_sizes=(128, 64)),)
+        self.deep = DNNLayer(layer_sizes=(128, 64))
         self.emb_model = emb_model
 
     def call(self, inputs, training=False):
-        embeddings = self.dense(self.emb_model(inputs, training))
+        embeddings = self.deep(self.emb_model(inputs, training))
         return tf.math.l2_normalize(embeddings, -1)
 
 
