@@ -21,3 +21,4 @@ from trainer.models.transformer import *
 
 model_factory = Factory()
 model_factory.register_all_subclasses(tfrs.Model)
+model_factory.register(TransformerModel)

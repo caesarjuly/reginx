@@ -6,12 +6,16 @@ import math
 import tensorflow as tf
 
 from trainer.common.gcp import BUCKET_NAME, download_from_directory
-from trainer.models.common.transformer import CustomSchedule
-from trainer.tasks.base import BaseTask
+from trainer.models.common.transformer import (
+    CustomSchedule,
+    masked_accuracy,
+    masked_loss,
+)
 from trainer.models import model_factory
+from trainer.tasks.base import NLPTask
 
 
-class TransformerTrain(BaseTask):
+class TransformerTrain(NLPTask):
     def __init__(self, hparams) -> None:
         super().__init__(hparams)
         self.train_data, self.test_data = self.load_data()
@@ -37,21 +41,18 @@ class TransformerTrain(BaseTask):
         )
 
     def run(self) -> Dict:
-        ranking_embs = [
-            model_factory.get_class(emb.strip())(self.meta)
-            for emb in self.hparams.ranking_emb.split(",")
-        ]
-        ranker = model_factory.get_class(self.hparams.ranker)
-        self.model = ranker(self.hparams, *ranking_embs)
+        model = model_factory.get_class(self.hparams.model)
+        self.model = model(self.hparams)
         learning_rate = CustomSchedule(self.hparams.model_dim)
         self.model.compile(
+            loss=masked_loss,
             optimizer=tf.keras.optimizers.Adam(
                 learning_rate=learning_rate,
                 beta_1=0.9,
                 beta_2=0.98,
                 epsilon=1e-9,
             ),
-            steps_per_execution=1000,
+            metrics=[masked_accuracy],
         )
         train = (
             self.train_data.batch(self.hparams.batch_size)
@@ -74,6 +75,7 @@ class TransformerTrain(BaseTask):
         self.model.fit(
             train,
             epochs=self.hparams.epochs,
+            validation_data=test,
             callbacks=[tensorboard_callback],
         )
         self.model.summary()
@@ -84,7 +86,7 @@ class TransformerTrain(BaseTask):
         # https://github.com/tensorflow/tensorflow/issues/37439#issuecomment-596916472
         data = self.test_data.take(20).batch(20)
         for i in data.as_numpy_iterator():
-            print(i["label"])
+            print(i[1])
         result = self.model.predict(data)
         print([i[0] for i in result])
         # Save the index.

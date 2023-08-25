@@ -6,19 +6,13 @@ from trainer.models.common.transformer import masked_accuracy, masked_loss, Tran
 from trainer.util.tools import ObjectDict
 
 
-class TransformerModel(tfrs.Model):
+class TransformerModel(tf.keras.Model):
     def __init__(
         self,
         hparams: ObjectDict,
-        ranking_emb: tf.keras.Model,
     ):
         super().__init__()
-        self.ranking_emb = ranking_emb
         self.hparams = hparams
-        self.task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
-            loss=masked_loss,
-            metrics=[masked_accuracy],
-        )
         self.transformer = Transformer(
             self.hparams.src_vocab_size,
             self.hparams.target_vocab_size,
@@ -30,18 +24,13 @@ class TransformerModel(tfrs.Model):
             head_num=self.hparams.head_num,
         )
 
-    def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
-        return self.transformer(features["src"], features["target"], training=training)
-
-    def compute_loss(
-        self, features: Dict[Text, tf.Tensor], training=False
-    ) -> tf.Tensor:
-        labels = features[self.hparams.label]
-        rating_predictions = self(features, training=training)
-
-        # The task computes the loss and the metrics.
-        return self.task(
-            labels=labels,
-            predictions=rating_predictions,
-            training=training,
-        )
+    def call(self, inputs, training=False) -> tf.Tensor:
+        src, target = inputs
+        logits = self.transformer(src, target, training=training)
+        try:
+            # Drop the keras mask, so it doesn't scale the losses/metrics.
+            # b/250038731
+            del logits._keras_mask
+        except AttributeError:
+            pass
+        return logits

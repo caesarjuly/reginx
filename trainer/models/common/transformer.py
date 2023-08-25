@@ -52,12 +52,15 @@ class PositionalEmbedding(tf.keras.layers.Layer):
         return pe
 
     def call(self, inputs, **kwargs):
+        length = tf.shape(inputs)[1]
         embedded_tokens = self.token_emb(inputs)
-        return embedded_tokens + self.pos_enc
+        # This factor sets the relative scale of the embedding and positonal_encoding.
+        embedded_tokens *= tf.math.sqrt(tf.cast(self.dim, tf.float32))
+        return embedded_tokens + self.pos_enc[tf.newaxis, :length, :]
 
     # Pass mask from token_emb, https://www.tensorflow.org/guide/keras/understanding_masking_and_padding#supporting_masking_in_your_custom_layers
-    def compute_mask(self, inputs, mask=None):
-        return self.token_emb.compute_mask(inputs, mask=mask)
+    def compute_mask(self, *args, **kwargs):
+        return self.token_emb.compute_mask(*args, **kwargs)
 
     def get_config(self):
         # to make save and load a model using custom layer possible
@@ -92,45 +95,77 @@ class MultiHeadSelfAttentionLayer(tf.keras.layers.Layer):
         head_num=8,
         key_dim=64,
         val_dim=None,
-        dropout=0.1,
+        dropout=0.0,
+        use_bias=True,
         **kwargs,
     ):
         super(MultiHeadSelfAttentionLayer, self).__init__(**kwargs)
+        self.supports_masking = True
         self.key_dim = key_dim
         self.val_dim = val_dim
         self.head_num = head_num
         self.key_output_dim = key_dim * head_num
         self.val_output_dim = val_dim * head_num if val_dim else self.key_output_dim
         self.dropout = tf.keras.layers.Dropout(dropout)
+        self.use_bias = use_bias
 
     def build(self, input_shape: tf.Tensor):
         embedding_size = input_shape[-1]
         self.W_Query = self.add_weight(
-            name="query",
+            name="weight_query",
             shape=[embedding_size, self.key_output_dim],
         )
         self.W_Key = self.add_weight(
-            name="key",
+            name="weight_key",
             shape=[embedding_size, self.key_output_dim],
         )
         self.W_Value = self.add_weight(
-            name="value",
+            name="weight_value",
             shape=[embedding_size, self.val_output_dim],
         )
         self.W_Output = self.add_weight(
-            name="output",
+            name="weight_output",
             shape=[self.val_output_dim, embedding_size],
         )
+        if self.use_bias:
+            self.B_Query = self.add_weight(
+                "bias_query",
+                shape=[
+                    self.key_output_dim,
+                ],
+                initializer="zeros",
+            )
+            self.B_Key = self.add_weight(
+                "bias_key",
+                shape=[
+                    self.key_output_dim,
+                ],
+                initializer="zeros",
+            )
+            self.B_Value = self.add_weight(
+                "bias_value",
+                shape=[
+                    self.val_output_dim,
+                ],
+                initializer="zeros",
+            )
+            self.B_Output = self.add_weight(
+                "bias_output",
+                shape=[
+                    embedding_size,
+                ],
+                initializer="zeros",
+            )
 
     def call(
         self,
         query,
         key,
         value,
+        training=False,
         use_causal_mask=False,
-        training=None,
     ):
-        # shape [head_num, batch_size, query_length, key_length]
+        # shape [batch_size, query_length, key_length]
         mask = self._compute_attention_mask(
             query, key, value, use_causal_mask=use_causal_mask
         )
@@ -140,6 +175,11 @@ class MultiHeadSelfAttentionLayer(tf.keras.layers.Layer):
         keys = tf.matmul(key, self.W_Key)
         # shape [batch_size, key_length, val_dim * head_num]
         values = tf.matmul(value, self.W_Value)
+
+        if self.use_bias:
+            querys = tf.nn.bias_add(querys, self.B_Query)
+            keys = tf.nn.bias_add(keys, self.B_Key)
+            values = tf.nn.bias_add(values, self.B_Value)
 
         # reshape and move the head_num to axis 0
         # shape [head_num, batch_size, query_length, key_dim]
@@ -175,6 +215,8 @@ class MultiHeadSelfAttentionLayer(tf.keras.layers.Layer):
 
         # shape [batch_size, query_length, embedding_size]
         outputs = tf.matmul(outputs, self.W_Output)
+        if self.use_bias:
+            outputs = tf.nn.bias_add(outputs, self.B_Output)
         return outputs
 
     def _compute_attention_mask(self, query, key, value, use_causal_mask=False):
@@ -258,6 +300,51 @@ class MultiHeadSelfAttentionLayer(tf.keras.layers.Layer):
                 "key_dim": self.key_dim,
                 "val_dim": self.val_dim,
                 "dropout": self.dropout,
+                "use_bias": self.use_bias,
+            }
+        )
+        return config
+
+
+class FeedForward(tf.keras.layers.Layer):
+    """feed forward layer is composed of
+        relu dense layer -> linear dense layer -> add & layer normalization layer
+
+    Input shape
+      - 3D tensor with shape: ``(batch_size, sequence_length, embedding_size)``.
+
+    Output shape
+      - 3D tensor with shape: ``(batch_size, sequence_length, embedding_size)``.
+
+    References
+        - [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)
+    """
+
+    def __init__(self, ff_dim=2048, dropout=0.1, model_dim=512, **kwargs):
+        super(FeedForward, self).__init__(**kwargs)
+        self.model_dim = model_dim
+        self.ff_dim = ff_dim
+        self.dropout = dropout
+        # use the Add layer to ensure that Keras masks are propagated (the + operator does not).
+        self.add = tf.keras.layers.Add()
+        self.norm = tf.keras.layers.LayerNormalization()
+        # dropout layers are applied before residual and normalization layer
+        self.dropout1 = tf.keras.layers.Dropout(dropout)
+        self.dense1 = tf.keras.layers.Dense(ff_dim, activation="relu")
+        self.dense2 = tf.keras.layers.Dense(model_dim)
+
+    def call(self, input, training=False):
+        dense_output = self.dropout1(self.dense2(self.dense1(input)), training=training)
+        output = self.norm(self.add([input, dense_output]), training=training)
+        return output
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "model_dim": self.model_dim,
+                "ff_dim": self.ff_dim,
+                "dropout": self.dropout,
             }
         )
         return config
@@ -292,28 +379,26 @@ class Encoder(tf.keras.layers.Layer):
         self.ff_dim = ff_dim
         self.dropout = dropout
         self.head_num = head_num
-        self.norm1 = tf.keras.layers.LayerNormalization()
-        self.norm2 = tf.keras.layers.LayerNormalization()
-        # dropout layers are applied before residual and normalization layer
-        self.dropout1 = tf.keras.layers.Dropout(dropout)
-        self.dropout2 = tf.keras.layers.Dropout(dropout)
-        self.dense1 = tf.keras.layers.Dense(ff_dim, activation="relu")
-        self.dense2 = tf.keras.layers.Dense(model_dim, activation="relu")
+        # use the Add layer to ensure that Keras masks are propagated (the + operator does not).
+        self.add = tf.keras.layers.Add()
+        self.norm = tf.keras.layers.LayerNormalization()
+        self.ff = FeedForward(ff_dim=ff_dim, dropout=dropout, model_dim=model_dim)
         # get key_dim
         key_dim = model_dim // head_num
         self.attention = MultiHeadSelfAttentionLayer(
             head_num=head_num, key_dim=key_dim, dropout=dropout
         )
 
-    def call(self, input, **kwargs):
+    def call(self, input, training=False):
         # shape [batch_size, token_length, embedding_size]
-        attention_output = self.norm1(
-            input + self.dropout1(self.attention(input, input, input, **kwargs)),
-            **kwargs,
+        attention_output = self.norm(
+            self.add(
+                [input, self.attention(input, input, input, training=training)],
+            ),
+            training=training,
         )
-        dense_output = self.dropout2(self.dense2(self.dense1(attention_output)))
-        output = self.norm2(attention_output + dense_output, **kwargs)
-        return output
+
+        return self.ff(attention_output)
 
     def get_config(self):
         config = super().get_config()
@@ -361,15 +446,12 @@ class Decoder(tf.keras.layers.Layer):
         self.ff_dim = ff_dim
         self.dropout = dropout
         self.head_num = head_num
+        # use the Add layer to ensure that Keras masks are propagated (the + operator does not).
+        self.add1 = tf.keras.layers.Add()
+        self.add2 = tf.keras.layers.Add()
         self.norm1 = tf.keras.layers.LayerNormalization()
         self.norm2 = tf.keras.layers.LayerNormalization()
-        self.norm3 = tf.keras.layers.LayerNormalization()
-        # dropout layers are applied before residual and normalization layer
-        self.dropout1 = tf.keras.layers.Dropout(dropout)
-        self.dropout2 = tf.keras.layers.Dropout(dropout)
-        self.dropout3 = tf.keras.layers.Dropout(dropout)
-        self.dense1 = tf.keras.layers.Dense(ff_dim, activation="relu")
-        self.dense2 = tf.keras.layers.Dense(model_dim, activation="relu")
+        self.ff = FeedForward(ff_dim=ff_dim, dropout=dropout, model_dim=model_dim)
         # get key_dim
         key_dim = model_dim // head_num
         self.self_attention = MultiHeadSelfAttentionLayer(
@@ -379,34 +461,40 @@ class Decoder(tf.keras.layers.Layer):
             head_num=head_num, key_dim=key_dim, dropout=dropout
         )
 
-    def call(self, encoder_output, decoder_input, **kwargs):
+    def call(self, encoder_output, decoder_input, training=False):
         # shape [batch_size, query_length, embedding_size]
+        # use causal_mask here
         self_attention_output = self.norm1(
-            decoder_input
-            + self.dropout1(
-                self.self_attention(
+            self.add1(
+                [
                     decoder_input,
-                    decoder_input,
-                    decoder_input,
-                    use_causal_mask=True,
-                    **kwargs,
-                )
+                    self.self_attention(
+                        decoder_input,
+                        decoder_input,
+                        decoder_input,
+                        training=training,
+                        use_causal_mask=True,
+                    ),
+                ]
             ),
-            **kwargs,
+            training=training,
         )
         # query is from the output of previous self attention layer
         cross_attention_output = self.norm2(
-            self_attention_output
-            + self.dropout2(
-                self.cross_attention(
-                    self_attention_output, encoder_output, encoder_output, **kwargs
-                )
+            self.add2(
+                [
+                    self_attention_output,
+                    self.cross_attention(
+                        self_attention_output,
+                        encoder_output,
+                        encoder_output,
+                        training=training,
+                    ),
+                ]
             ),
-            **kwargs,
+            training=training,
         )
-        dense_output = self.dropout3(self.dense2(self.dense1(cross_attention_output)))
-        output = self.norm3(cross_attention_output + dense_output, **kwargs)
-        return output
+        return self.ff(cross_attention_output)
 
     def get_config(self):
         config = super().get_config()
@@ -470,26 +558,27 @@ class Transformer(tf.keras.layers.Layer):
             )
             for _ in range(layer_num)
         ]
+        self.encoder_dropout = tf.keras.layers.Dropout(dropout)
         self.decoders = [
             Decoder(
                 model_dim=model_dim, ff_dim=ff_dim, dropout=dropout, head_num=head_num
             )
             for _ in range(layer_num)
         ]
+        self.decoder_dropout = tf.keras.layers.Dropout(dropout)
         self.dense = tf.keras.layers.Dense(
             target_vocab_size, activation=tf.keras.activations.softmax
         )
 
-    def call(self, src, target, **kwargs):
+    def call(self, src, target, training=False):
         # shape [batch_size, token_length]
-        src_emb = self.src_emb(src, **kwargs)
-        target_emb = self.target_emb(target, **kwargs)
+        src_emb = self.encoder_dropout(self.src_emb(src, training=training))
+        target_emb = self.decoder_dropout(self.target_emb(target, training=training))
         # shape [batch_size, token_length, model_dim]
         for encoder in self.encoders:
-            src_emb = encoder(src_emb, **kwargs)
+            src_emb = encoder(src_emb, training=training)
         for decoder in self.decoders:
-            # notice we only use casual masking in the first decoder
-            target_emb = decoder(src_emb, target_emb, **kwargs)
+            target_emb = decoder(src_emb, target_emb, training=training)
         # shape [batch_size, token_length, vocab_size_logits]
         return self.dense(target_emb)
 

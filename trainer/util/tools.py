@@ -9,14 +9,14 @@ class Factory:
     def __init__(self):
         self._creators = {}
 
-    def register(self, task_name, creator):
-        if task_name in self._creators:
-            raise ValueError(f"{task_name} task already exists!")
-        self._creators[task_name] = creator
+    def register(self, task_class):
+        if task_class.__name__ in self._creators:
+            raise ValueError(f"{task_class.__name__} task already exists!")
+        self._creators[task_class.__name__] = task_class
 
-    def register_all_subclasses(self, taskClass):
-        for subclass in self.get_subclasses(taskClass):
-            self.register(subclass.__name__, subclass)
+    def register_all_subclasses(self, task_class):
+        for subclass in self.get_subclasses(task_class):
+            self.register(subclass)
 
     def get_class(self, task_name):
         creator = self._creators.get(task_name)

@@ -1,0 +1,19 @@
+model:
+  model: TransformerModel
+  src_vocab_size: 7765
+  target_vocab_size: 7010
+  seq_length: 128
+  layer_num: 4
+  model_dim: 256
+  ff_dim: 512
+  dropout: 0.1
+  head_num: 8
+
+train:
+  task_name: TransformerTrain
+  epochs: 20
+  batch_size: 64
+  train_data: transformer/train/train_samples
+  test_data: transformer/train/test_samples
+  model_dir: trainer/saved_models/tranformer
+  log_dir: logs
