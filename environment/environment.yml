@@ -147,7 +147,7 @@ dependencies:
       - fastavro==1.7.3
       - fasteners==0.18
       - fastjsonschema==2.17.1
-      - flatbuffers==1.12
+      - flatbuffers==23.5.26
       - fonttools==4.41.0
       - fqdn==1.5.1
       - frozenlist==1.4.0
@@ -205,7 +205,7 @@ dependencies:
       - jupyter-server==2.7.0
       - jupyter-server-terminals==0.4.4
       - jupyterlab-pygments==0.2.2
-      - keras==2.9.0
+      - keras==2.11.0
       - keras-preprocessing==1.1.2
       - kiwisolver==1.4.4
       - libclang==16.0.0
@@ -222,7 +222,7 @@ dependencies:
       - nest-asyncio==1.5.6
       - notebook==6.5.4
       - notebook-shim==0.2.3
-      - numpy==1.24.3
+      - numpy==1.24.4
       - nvidia-cublas-cu11==11.11.3.6
       - nvidia-cuda-runtime-cu11==11.8.89
       - nvidia-cudnn-cu11==8.9.0.131
@@ -277,19 +277,21 @@ dependencies:
       - soupsieve==2.4.1
       - sqlparse==0.4.4
       - stack-data==0.6.2
-      - tensorboard==2.9.1
+      - tensorboard==2.11.2
       - tensorboard-data-server==0.6.1
       - tensorboard-plugin-profile==2.8.0
       - tensorboard-plugin-wit==1.8.1
-      - tensorflow==2.9.0
+      - tensorflow==2.11.0
       - tensorflow-data-validation==1.9.0
       - tensorflow-datasets==4.8.2
-      - tensorflow-estimator==2.9.0
-      - tensorflow-gpu==2.9.0
+      - tensorflow-estimator==2.11.0
+      - tensorflow-gpu==2.11.0
+      - tensorflow-hub==0.14.0
       - tensorflow-io-gcs-filesystem==0.30.0
       - tensorflow-metadata==1.9.0
       - tensorflow-recommenders==0.7.3
       - tensorflow-serving-api==2.9.0
+      - tensorflow-text==2.11.0
       - tensorrt==8.5.3.1
       - termcolor==2.3.0
       - terminado==0.17.1
