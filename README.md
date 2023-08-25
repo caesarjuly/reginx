@@ -11,7 +11,7 @@ Initial plan including:
 
 ## Supported models  
 Tensorflow 2 and Google Cloud is used for model training and performance tracking. The conda environment config is [here](https://github.com/caesarjuly/reginx/tree/master/environment).  
-I also write a blog explaining the models and put the relevant links in the table below.
+I have a personal [blog](https://happystrongcoder.substack.com/) in substack explaining the models and I put the corresponding links in the table below.
 
 
 | Model  | Paper | Code | Blog |
