@@ -28,3 +28,63 @@ I have a personal [blog](https://happystrongcoder.substack.com/) in substack exp
 | TwoTower | [Sampling-Bias-Corrected Neural Modeling for Large Corpus Item Recommendations](https://storage.googleapis.com/pub-tools-public-publication-data/pdf/6417b9a68bd77033d65e431bdba855563066dc8c.pdf) [Mixed Negative Sampling for Learning Two-tower Neural Networks in Recommendations](https://storage.googleapis.com/pub-tools-public-publication-data/pdf/b9f4e78a8830fe5afcf2f0452862fb3c0d6584ea.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/two_tower.py)| [Post1](https://happystrongcoder.substack.com/p/two-tower-candidate-retriever-i) [Post2](https://happystrongcoder.substack.com/p/two-tower-candidate-retriever-ii) [Post3](https://happystrongcoder.substack.com/p/two-tower-candidate-retriever-iii) |
 | Wide and Deep | [Wide & Deep Learning for Recommender Systems](https://arxiv.org/pdf/1606.07792.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/wide_and_deep.py)| [Post](https://happystrongcoder.substack.com/p/wide-and-deep-learning-for-recommender) |
 | Transformer | [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/transformer.py)| [Post](https://happystrongcoder.substack.com/p/transformer-with-code-part-i-positional) |
+
+
+## Local Training
+Here is an example to train a two-tower model in local machine.
+### Setup Conda
+Setup your conda environment using the conda config [here](https://github.com/caesarjuly/reginx/tree/master/environment).
+```
+conda env create -f environment.yml
+conda activate tf
+```
+Set your PYTHONPATH to the root folder of this project. Or you can add it to your bashrc:
+```
+export PYTHONPATH=/your_project_folder/reginx
+```
+
+### Prepare Movielens Training Data
+You can run this [script](https://github.com/caesarjuly/reginx/blob/master/trainer/preprocess/movielens.py) to generate meta and training data in your local directory.
+By default, it's using the [movielens-1m](https://www.tensorflow.org/datasets/catalog/movielens#movielens1m-ratings) from TensorFlow datasets.  
+And copy your dataset files to your local `/tmp/train, /tmp/test, /tmp/item` folder. Notice that the TwoTower model implementation require 3 kinds of files, train files for training, test files for test and item files for mixing global negative samples.     
+If you want to use your dataset other than movielens, please prepare your own dataset and save it to your local directory.
+
+### Check Config File
+There is example config [file](https://github.com/caesarjuly/reginx/blob/master/trainer/configs/movielens_candidate_retriever.yaml) for candidate-retriever training.  
+If you want to use your dataset other than movielens, please prepare your own [query](https://github.com/caesarjuly/reginx/blob/master/trainer/models/features/movielens.py#L8) and [candidate](https://github.com/caesarjuly/reginx/blob/master/trainer/models/features/movielens.py#L76) embedding class.
+```
+model:
+  temperature: 0.05
+  # specify training model under models folder
+  base_model: TwoTower
+  # specify query embedding model under models/features folder
+  query_emb: MovieLensQueryEmb
+  # specify candidate embedding model under models/features folder
+  candidate_emb: MovieLensCandidateEmb
+  # specify the unique key for candidates
+  item_id_key: movie_id
+
+train:
+  # specify task under tasks folder
+  task_name: CandidateRetrieverTrain
+  epochs: 1
+  batch_size: 256
+  mixed_negative_batch_size: 128
+  learning_rate: 0.05
+  train_data: movielens/data/ratings_train
+  test_data: movielens/data/ratings_test
+  candidate_data: movielens/data/movies
+  meta_data: trainer/meta/movie_lens.json
+  model_dir: trainer/saved_models/movielens_cr
+  log_dir: logs
+```
+### Training
+Simply run the script below and specify your the config file in you activated conda environment.
+```
+python trainer/local_train.py -c movielens_candidate_retriever  
+```
+By default, the training metrics show once per 1000 training steps for faster training. You can modify the setting by tuning the [steps_per_execution](https://github.com/caesarjuly/reginx/blob/master/trainer/tasks/candidate_retriever_train.py#L37) hyperparameter while compiling model.  
+After the training, evaluation will be run on the test dataset. You should see metrics like:
+```
+391/391 [==============================] - 50s 129ms/step - factorized_top_k/top_1_categorical_accuracy: 0.0036 - factorized_top_k/top_5_categorical_accuracy: 0.0181 - factorized_top_k/top_10_categorical_accuracy: 0.0349 - factorized_top_k/top_50_categorical_accuracy: 0.1428 - factorized_top_k/top_100_categorical_accuracy: 0.2409 - loss: 1406.8086 - regularization_loss: 7.9244 - total_loss: 1414.7329
+```
