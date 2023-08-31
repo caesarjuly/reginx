@@ -238,8 +238,12 @@ def transform_data():
         [ratings_test, test_negatives], weights=[0.5, 0.5]
     )
 
+    # the following is for candidate retriever training
     ratings_train.shuffle(1_000).save("ratings_train")
     ratings_test.shuffle(1_000).save("ratings_test")
+    movies.save("movies")
+
+    # the following is for ranker training
     # follow the practice from DCN v2, ignore rating 3
     ratings_train.filter(lambda x: x["user_rating"] != 3).shuffle(1_000).save(
         "ratings_train_remove_rating3"
@@ -249,28 +253,28 @@ def transform_data():
     )
     train_with_negatives.shuffle(1_000).save("ratings_train_random_neg")
     test_with_negatives.shuffle(1_000).save("ratings_test_random_neg")
-    movies.save("movies")
-    upload_from_directory("ratings_train", BUCKET_NAME, "movielens/data/ratings_train")
-    upload_from_directory("ratings_test", BUCKET_NAME, "movielens/data/ratings_test")
-    upload_from_directory(
-        "ratings_train_remove_rating3",
-        BUCKET_NAME,
-        "movielens/data/ratings_train_remove_rating3",
-    )
-    upload_from_directory(
-        "ratings_test_remove_rating3",
-        BUCKET_NAME,
-        "movielens/data/ratings_test_remove_rating3",
-    )
-    upload_from_directory(
-        "ratings_train_random_neg",
-        BUCKET_NAME,
-        "movielens/data/ratings_train_random_neg",
-    )
-    upload_from_directory(
-        "ratings_test_random_neg", BUCKET_NAME, "movielens/data/ratings_test_random_neg"
-    )
-    upload_from_directory("movies", BUCKET_NAME, "movielens/data/movies")
+
+    # upload_from_directory("ratings_train", BUCKET_NAME, "movielens/data/ratings_train")
+    # upload_from_directory("ratings_test", BUCKET_NAME, "movielens/data/ratings_test")
+    # upload_from_directory(
+    #     "ratings_train_remove_rating3",
+    #     BUCKET_NAME,
+    #     "movielens/data/ratings_train_remove_rating3",
+    # )
+    # upload_from_directory(
+    #     "ratings_test_remove_rating3",
+    #     BUCKET_NAME,
+    #     "movielens/data/ratings_test_remove_rating3",
+    # )
+    # upload_from_directory(
+    #     "ratings_train_random_neg",
+    #     BUCKET_NAME,
+    #     "movielens/data/ratings_train_random_neg",
+    # )
+    # upload_from_directory(
+    #     "ratings_test_random_neg", BUCKET_NAME, "movielens/data/ratings_test_random_neg"
+    # )
+    # upload_from_directory("movies", BUCKET_NAME, "movielens/data/movies")
 
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@ class DNNLayer(tf.keras.layers.Layer):
         **kwargs
     ):
         super(DNNLayer, self).__init__(**kwargs)
-        self.model = tf.keras.Sequential()
+        self.model = tf.keras.Sequential(name="dnn")
         for layer_size in layer_sizes:
             self.model.add(
                 tf.keras.layers.Dense(

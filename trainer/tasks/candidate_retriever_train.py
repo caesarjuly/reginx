@@ -36,9 +36,9 @@ class CandidateRetrieverTrain(BaseTask):
             optimizer=tf.keras.optimizers.Adam(self.hparams.learning_rate),
             steps_per_execution=1000,
         )
-        train = self.train_data.batch(self.hparams.batch_size).shuffle(100_000).cache()
+        train = self.train_data.batch(self.hparams.batch_size).shuffle(10_000).cache()
 
-        test = self.test_data.batch(self.hparams.batch_size).shuffle(100_000).cache()
+        test = self.test_data.batch(self.hparams.batch_size).shuffle(10_000).cache()
         uniform_negatives = (
             self.candidate_data.cache()
             .repeat()

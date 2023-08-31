@@ -17,7 +17,7 @@ class DenseModel(tf.keras.Model):
         self.emb_model = emb_model
 
     def call(self, inputs, training=False):
-        embeddings = self.deep(self.emb_model(inputs, training))
+        embeddings = self.deep(self.emb_model(inputs, training), training=training)
         return tf.math.l2_normalize(embeddings, -1)
 
 

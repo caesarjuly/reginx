@@ -53,14 +53,6 @@ class MovieLensQueryEmb(tfrs.Model):
                 tf.keras.layers.Embedding(input_dim=35, output_dim=32),
             ]
         )
-        self.dense = tf.keras.Sequential(
-            [
-                tf.keras.layers.Dense(128, activation="relu"),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.Dense(64, activation="relu"),
-                tf.keras.layers.BatchNormalization(),
-            ]
-        )
 
     def call(self, inputs, training=False):
         return tf.concat(

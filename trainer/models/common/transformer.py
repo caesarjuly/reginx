@@ -5,7 +5,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     """Position embedding is composed of a positional encoding layer and a normal embedding layer
 
     Input shape
-      - two 2D tensor with shape: ``(batch_size, sequence_length)``.
+      - 2D tensor with shape: ``(batch_size, sequence_length)``.
 
     Output shape
       - 3D tensor with shape: ``(batch_size, sequence_length, embedding_size)``.
