@@ -57,15 +57,30 @@ class SASRecBlock(tf.keras.layers.Layer):
         self.head_num = head_num
         self.dim = dim
         self.dropout = dropout
+        self.dropout1 = tf.keras.layers.Dropout(dropout)
+        self.add = tf.keras.layers.Add()
+        self.norm = tf.keras.layers.LayerNormalization()
         self.attention = MultiHeadSelfAttentionLayer(
             head_num=head_num, key_dim=dim, dropout=dropout
         )
         self.ff = FeedForward(ff_dim=dim, dropout=dropout, model_dim=dim)
 
     def call(self, inputs, training=False):
+        inputs = self.norm(inputs, training=training)
+        inputs = self.add(
+            [
+                inputs,
+                self.dropout1(
+                    self.attention(
+                        inputs, inputs, inputs, training=training, use_causal_mask=True
+                    ),
+                    training=training
+                ),
+            ]
+        )
         # must enable causal mask
         return self.ff(
-            self.attention(inputs, inputs, inputs, training=training, use_causal_mask=True),
+            inputs,
             training=training,
         )
 
