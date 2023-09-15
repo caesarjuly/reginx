@@ -71,6 +71,7 @@ class SASRecBlock(tf.keras.layers.Layer):
             [
                 inputs,
                 self.dropout1(
+                    # must enable causal mask
                     self.attention(
                         inputs, inputs, inputs, training=training, use_causal_mask=True
                     ),
@@ -78,7 +79,6 @@ class SASRecBlock(tf.keras.layers.Layer):
                 ),
             ]
         )
-        # must enable causal mask
         return self.ff(
             inputs,
             training=training,
