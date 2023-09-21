@@ -29,7 +29,7 @@ I have a personal [blog](https://happystrongcoder.substack.com/) in substack exp
 | Wide and Deep | [Wide & Deep Learning for Recommender Systems](https://arxiv.org/pdf/1606.07792.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/wide_and_deep.py)| [Post](https://happystrongcoder.substack.com/p/wide-and-deep-learning-for-recommender) |
 | Transformer | [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/transformer.py)| [Post](https://happystrongcoder.substack.com/p/transformer-with-code-part-i-positional) |
 | Bert | [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/common/bert.py)| [Post](https://happystrongcoder.substack.com/p/a-gentle-introduction-to-bert-pre) |
-
+| SASRec | [Self-Attentive Sequential Recommendation](https://arxiv.org/pdf/1808.09781.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/common/sas_rec.py)| [Post](https://happystrongcoder.substack.com/p/sasrec-self-attentive-sequential) |
 
 ## Local Training
 Here is an example to train a two-tower model in local machine.
