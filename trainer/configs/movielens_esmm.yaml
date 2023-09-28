@@ -1,15 +1,17 @@
 model:
-  ranker: BasicRanker
+  ranker: ESMM
   ranking_emb: MovieLensRankingEmb
   label: user_rating
+  pctr_weight: 1.0
+  pctcvr_weight: 1.0
 
 train:
   task_name: RankerTrain
   epochs: 1
   batch_size: 256
   learning_rate: 0.001
-  train_data: movielens/data/ratings_train_ranker
-  test_data: movielens/data/ratings_test_ranker
+  train_data: movielens/data/ratings_train_random_neg
+  test_data: movielens/data/ratings_test_random_neg
   meta_data: trainer/meta/movie_lens.json
   model_dir: trainer/saved_models/movielens_ranker
   log_dir: logs

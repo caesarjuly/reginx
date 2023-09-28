@@ -18,6 +18,7 @@ from trainer.models.mask_cn import *
 from trainer.models.dual_mlp import *
 from trainer.models.final_mlp import *
 from trainer.models.transformer import *
+from trainer.models.esmm import *
 
 model_factory = Factory()
 model_factory.register_all_subclasses(tfrs.Model)

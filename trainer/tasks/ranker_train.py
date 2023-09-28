@@ -79,7 +79,7 @@ class RankerTrain(BaseTask):
         # https://github.com/tensorflow/tensorflow/issues/37439#issuecomment-596916472
         data = self.test_data.take(20).batch(20)
         for i in data.as_numpy_iterator():
-            print(i["label"])
+            print(i[self.hparams.label])
         result = self.model.predict(data)
         print([i[0] for i in result])
         # Save the index.
