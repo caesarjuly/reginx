@@ -16,7 +16,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
 
     def __init__(self, vocab_size, length=100, dim=512, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
-        assert length % 2 == 0, "Output dimension needs to be an even integer"
+        assert dim % 2 == 0, "Output dimension needs to be an even integer"
         self.length = length
         self.dim = dim
         self.token_emb = tf.keras.layers.Embedding(

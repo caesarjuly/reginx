@@ -18,7 +18,6 @@ class PositionalEmbedding(tf.keras.layers.Layer):
 
     def __init__(self, token_embedding, seq_length=50, dim=50, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
-        assert seq_length % 2 == 0, "Output dimension needs to be an even integer"
         self.length = seq_length
         self.dim = dim
         self.token_emb = token_embedding
@@ -75,7 +74,7 @@ class SASRecBlock(tf.keras.layers.Layer):
                     self.attention(
                         inputs, inputs, inputs, training=training, use_causal_mask=True
                     ),
-                    training=training
+                    training=training,
                 ),
             ]
         )
