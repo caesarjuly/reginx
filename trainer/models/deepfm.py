@@ -1,7 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
-from trainer.models.common.basic_layers import DNNLayer
+from trainer.models.common.basic_layers import MLPLayer
 from trainer.models.common.feature_cross import FMLayer
 
 from trainer.util.tools import ObjectDict
@@ -33,7 +33,7 @@ class DeepFM(tfrs.Model):
         self.deep = tf.keras.Sequential(
             [
                 tf.keras.layers.Flatten(),
-                DNNLayer(layer_sizes),
+                MLPLayer(layer_sizes),
             ]
         )
         self.prediction = tf.keras.layers.Dense(

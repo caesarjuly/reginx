@@ -1,7 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
-from trainer.models.common.basic_layers import DNNLayer
+from trainer.models.common.basic_layers import MLPLayer
 from trainer.models.common.feature_cross import (
     FeatureSelectionLayer,
     InteractionAggregationLayer,
@@ -30,11 +30,11 @@ class FinalMLP(tfrs.Model):
 
         hidden_dims = list(map(int, self.hparams.hidden_dims.strip().split(",")))
         layer_sizes1 = list(map(int, self.hparams.layer_sizes1.strip().split(",")))
-        self.dense1 = DNNLayer(layer_sizes1)
+        self.dense1 = MLPLayer(layer_sizes1)
         self.fs_context1 = list(self.hparams.fs_context1.strip().split(","))
         self.fs1 = FeatureSelectionLayer(hidden_dims=hidden_dims)
         layer_sizes2 = list(map(int, self.hparams.layer_sizes2.strip().split(",")))
-        self.dense2 = DNNLayer(layer_sizes2)
+        self.dense2 = MLPLayer(layer_sizes2)
         self.fs_context2 = list(self.hparams.fs_context2.strip().split(","))
         self.fs2 = FeatureSelectionLayer(hidden_dims=hidden_dims)
 

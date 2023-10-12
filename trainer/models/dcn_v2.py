@@ -1,7 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
-from trainer.models.common.basic_layers import DNNLayer
+from trainer.models.common.basic_layers import MLPLayer
 
 from trainer.util.tools import ObjectDict
 from trainer.models.common.feature_cross import (
@@ -38,7 +38,7 @@ class DeepCrossNetworkV2(tfrs.Model):
         else:
             self.cross_net = CrossNetV2Layer(layer_num=self.hparams.layer_num)
         layer_sizes = list(map(int, self.hparams.layer_sizes.strip().split(",")))
-        self.dense = DNNLayer(layer_sizes)
+        self.dense = MLPLayer(layer_sizes)
         self.concat = tf.keras.layers.Concatenate()
         self.prediction = tf.keras.layers.Dense(1, "sigmoid")
 

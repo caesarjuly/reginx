@@ -1,7 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
-from trainer.models.common.basic_layers import DNNLayer
+from trainer.models.common.basic_layers import MLPLayer
 
 from trainer.util.tools import ObjectDict
 
@@ -48,7 +48,7 @@ class WideAndDeep(WideAndDeepTFRS):
         self.wide = tf.keras.experimental.LinearModel(
             kernel_regularizer=tf.keras.regularizers.l2(l2=0.0001)
         )
-        self.deep = DNNLayer()
+        self.deep = MLPLayer()
         self.prediction = tf.keras.layers.Dense(
             1,
             activation="sigmoid",

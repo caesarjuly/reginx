@@ -2,11 +2,12 @@ from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from trainer.models.common.basic_layers import MLPLayer
+from trainer.models.common.multi_task import MMOELayer
 
 from trainer.util.tools import ObjectDict
 
 
-class ESMM(tfrs.Model):
+class MMOE(tfrs.Model):
     def __init__(
         self,
         hparams: ObjectDict,
@@ -25,13 +26,14 @@ class ESMM(tfrs.Model):
         )
         self.pctr_weight = hparams.pctr_weight
         self.pctcvr_weight = hparams.pctcvr_weight
-        self.dense1 = tf.keras.Sequential(
+        self.mmoe = MMOELayer(hparams.expert_num, hparams.gate_num)
+        self.tower1 = tf.keras.Sequential(
             [
                 MLPLayer(),
                 tf.keras.layers.Dense(1, "sigmoid"),
             ]
         )
-        self.dense2 = tf.keras.Sequential(
+        self.tower2 = tf.keras.Sequential(
             [
                 MLPLayer(),
                 tf.keras.layers.Dense(1, "sigmoid"),
@@ -39,9 +41,15 @@ class ESMM(tfrs.Model):
         )
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
-        shared_emb = self.ranking_emb(features, training)
-        pctr = self.dense1(shared_emb, training)
-        pcvr = self.dense2(shared_emb, training)
+        shared_emb = self.ranking_emb(features, training=training)
+        # list of [batch_size, embedding_size]
+        gated_list = tf.split(
+            self.mmoe(shared_emb, training=training),
+            num_or_size_splits=self.hparams.gate_num,
+            axis=1,
+        )
+        pctr = self.tower1(gated_list[0], training=training)
+        pcvr = self.tower2(gated_list[1], training=training)
         return pctr, pcvr
 
     def compute_loss(

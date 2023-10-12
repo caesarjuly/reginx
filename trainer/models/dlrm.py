@@ -1,7 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
-from trainer.models.common.basic_layers import DNNLayer
+from trainer.models.common.basic_layers import MLPLayer
 
 from trainer.util.tools import ObjectDict
 
@@ -24,7 +24,7 @@ class DLRM(tfrs.Model):
         self.bottom_deep = tf.keras.Sequential(
             [
                 tf.keras.layers.Flatten(),
-                DNNLayer(layer_sizes=bottom_layer_sizes),
+                MLPLayer(layer_sizes=bottom_layer_sizes),
             ]
         )
         self.feature_cross = tfrs.layers.feature_interaction.DotInteraction()
@@ -34,7 +34,7 @@ class DLRM(tfrs.Model):
         self.top_deep = tf.keras.Sequential(
             [
                 tf.keras.layers.Flatten(),
-                DNNLayer(layer_sizes=top_layer_sizes),
+                MLPLayer(layer_sizes=top_layer_sizes),
             ]
         )
         self.prediction = tf.keras.layers.Dense(

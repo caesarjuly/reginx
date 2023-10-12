@@ -1,7 +1,7 @@
 from typing import Dict
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
-from trainer.models.common.basic_layers import DNNLayer
+from trainer.models.common.basic_layers import MLPLayer
 
 from trainer.models.common.sampling_bias_correction import SamplingBiasCorrection
 from trainer.util.tools import ObjectDict
@@ -13,7 +13,7 @@ class DenseModel(tf.keras.Model):
         emb_model: tf.keras.Model,
     ):
         super().__init__()
-        self.deep = DNNLayer(layer_sizes=(128, 64))
+        self.deep = MLPLayer(layer_sizes=(128, 64))
         self.emb_model = emb_model
 
     def call(self, inputs, training=False):

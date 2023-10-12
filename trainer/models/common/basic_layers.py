@@ -1,8 +1,8 @@
 import tensorflow as tf
 
 
-class DNNLayer(tf.keras.layers.Layer):
-    """A wrapper for basic DNN layers, including Dense, BN, DropOut and l2
+class MLPLayer(tf.keras.layers.Layer):
+    """A wrapper for basic dense layers, including Dense, BN, DropOut and l2
 
     Input shape
       - 2D tensor with shape: ``(batch_size, embedding_size)``.
@@ -21,8 +21,8 @@ class DNNLayer(tf.keras.layers.Layer):
         l2=0.0001,
         **kwargs
     ):
-        super(DNNLayer, self).__init__(**kwargs)
-        self.model = tf.keras.Sequential(name="dnn")
+        super(MLPLayer, self).__init__(**kwargs)
+        self.model = tf.keras.Sequential(name="mlp")
         for layer_size in layer_sizes:
             self.model.add(
                 tf.keras.layers.Dense(

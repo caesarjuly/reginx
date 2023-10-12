@@ -1,7 +1,7 @@
 from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
-from trainer.models.common.basic_layers import DNNLayer
+from trainer.models.common.basic_layers import MLPLayer
 from trainer.models.common.feature_cross import CrossNetV2Layer
 
 from trainer.util.tools import ObjectDict
@@ -51,7 +51,7 @@ class MaskCN(tfrs.Model):
         layer_sizes = list(map(int, self.hparams.layer_sizes.strip().split(",")))
         self.dense = tf.keras.Sequential(
             [
-                DNNLayer(layer_sizes),
+                MLPLayer(layer_sizes),
                 tf.keras.layers.Dense(
                     1,
                     activation="sigmoid",

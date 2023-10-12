@@ -1,5 +1,5 @@
 import tensorflow as tf
-from trainer.models.common.basic_layers import DNNLayer
+from trainer.models.common.basic_layers import MLPLayer
 
 from trainer.util.tools import ObjectDict
 
@@ -583,7 +583,7 @@ class FeatureSelectionLayer(tf.keras.layers.Layer):
     def build(self, input_shape: tf.Tensor):
         input_feature_shape, _ = input_shape
         input_emb_dim = input_feature_shape[-1]
-        self.hidden = DNNLayer(layer_sizes=self.hidden_dims, use_bn=False, l2=self.l2)
+        self.hidden = MLPLayer(layer_sizes=self.hidden_dims, use_bn=False, l2=self.l2)
         self.dense = tf.keras.layers.Dense(
             input_emb_dim,
             activation="sigmoid",

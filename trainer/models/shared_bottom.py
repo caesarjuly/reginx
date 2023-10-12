@@ -6,7 +6,7 @@ from trainer.models.common.basic_layers import MLPLayer
 from trainer.util.tools import ObjectDict
 
 
-class ESMM(tfrs.Model):
+class SharedBottom(tfrs.Model):
     def __init__(
         self,
         hparams: ObjectDict,
@@ -25,13 +25,14 @@ class ESMM(tfrs.Model):
         )
         self.pctr_weight = hparams.pctr_weight
         self.pctcvr_weight = hparams.pctcvr_weight
-        self.dense1 = tf.keras.Sequential(
+        self.shared_bottom = MLPLayer()
+        self.tower1 = tf.keras.Sequential(
             [
                 MLPLayer(),
                 tf.keras.layers.Dense(1, "sigmoid"),
             ]
         )
-        self.dense2 = tf.keras.Sequential(
+        self.tower2 = tf.keras.Sequential(
             [
                 MLPLayer(),
                 tf.keras.layers.Dense(1, "sigmoid"),
@@ -39,9 +40,10 @@ class ESMM(tfrs.Model):
         )
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
-        shared_emb = self.ranking_emb(features, training)
-        pctr = self.dense1(shared_emb, training)
-        pcvr = self.dense2(shared_emb, training)
+        shared_emb = self.ranking_emb(features, training=training)
+        shared_bottom_output = self.shared_bottom(shared_emb, training=training)
+        pctr = self.tower1(shared_bottom_output, training=training)
+        pcvr = self.tower2(shared_bottom_output, training=training)
         return pctr, pcvr
 
     def compute_loss(
