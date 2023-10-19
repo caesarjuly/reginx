@@ -31,6 +31,8 @@ I have a personal [blog](https://happystrongcoder.substack.com/) in substack exp
 | BERT | [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/common/bert.py)| [Post](https://happystrongcoder.substack.com/p/a-gentle-introduction-to-bert-pre) |
 | SASRec | [Self-Attentive Sequential Recommendation](https://arxiv.org/pdf/1808.09781.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/common/sas_rec.py)| [Post](https://happystrongcoder.substack.com/p/sasrec-self-attentive-sequential) |
 | BERT4REC | [BERT4Rec: Sequential Recommendation with Bidirectional Encoder Representations from Transformer](https://arxiv.org/pdf/1904.06690.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/common/bert4rec.py)| [Post](https://happystrongcoder.substack.com/p/bert4rec-sequential-recommendation) |
+| ESMM | [Entire Space Multi-Task Model: An Effective Approach for Estimating Post-Click Conversion Rate](https://arxiv.org/pdf/1804.07931.pdf)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/esmm.py)| [Post](https://happystrongcoder.substack.com/p/entire-space-multi-task-model-an) |
+| MMOE | [Modeling Task Relationships in Multi-task Learning with Multi-gate Mixture-of-Experts](https://dl.acm.org/doi/pdf/10.1145/3219819.3220007)  | [Code](https://github.com/caesarjuly/reginx/blob/master/trainer/models/mmoe.py)| [Post](https://happystrongcoder.substack.com/p/modeling-task-relationships-in-multi) |
 
 ## Local Training
 Here is an example to train a two-tower model in local machine.
