@@ -2,17 +2,18 @@ from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from trainer.models.common.basic_layers import MLPLayer
+from trainer.models.common.multi_task import DynamicWeightAveragingModel
 
 from trainer.util.tools import ObjectDict
 
 
-class SharedBottom(tfrs.Model):
+class SharedBottomDWA(DynamicWeightAveragingModel):
     def __init__(
         self,
         hparams: ObjectDict,
         ranking_emb: tf.keras.Model,
     ):
-        super().__init__()
+        super().__init__(hparams)
         self.ranking_emb = ranking_emb
         self.hparams = hparams
         self.pctr_task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
@@ -69,5 +70,4 @@ class SharedBottom(tfrs.Model):
             predictions=pctcvr,
             training=training,
         )
-
-        return self.pctr_weight * pctr_loss + self.pctcvr_weight * pctcvr_loss
+        return [pctr_loss, pctcvr_loss]

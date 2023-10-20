@@ -2,28 +2,32 @@ from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from trainer.models.common.basic_layers import MLPLayer
+from trainer.models.common.multi_task import DynamicTaskPrioritizationLayer
 
 from trainer.util.tools import ObjectDict
 
 
-class SharedBottom(tfrs.Model):
+class SharedBottomDTP(tfrs.Model):
     def __init__(
         self,
         hparams: ObjectDict,
         ranking_emb: tf.keras.Model,
     ):
-        super().__init__()
+        super().__init__(hparams)
         self.ranking_emb = ranking_emb
         self.hparams = hparams
+        self.pctr_auc = tf.keras.metrics.AUC()
         self.pctr_task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
             loss=tf.keras.losses.BinaryCrossentropy(),
-            metrics=[tf.keras.metrics.BinaryCrossentropy(), tf.keras.metrics.AUC()],
+            metrics=[tf.keras.metrics.BinaryCrossentropy(), self.pctr_auc],
         )
+        self.pctcvr_auc = tf.keras.metrics.AUC()
         self.pctcvr_task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
             loss=tf.keras.losses.BinaryCrossentropy(),
-            metrics=[tf.keras.metrics.BinaryCrossentropy(), tf.keras.metrics.AUC()],
+            metrics=[tf.keras.metrics.BinaryCrossentropy(), self.pctcvr_auc],
         )
         self.shared_bottom = MLPLayer()
+        self.dtp = DynamicTaskPrioritizationLayer(hparams.task_num)
         self.tower1 = tf.keras.Sequential(
             [
                 MLPLayer(),
@@ -69,5 +73,6 @@ class SharedBottom(tfrs.Model):
             predictions=pctcvr,
             training=training,
         )
-
-        return self.pctr_weight * pctr_loss + self.pctcvr_weight * pctcvr_loss
+        return self.dtp(
+            [self.pctr_auc.result(), self.pctcvr_auc.result()], [pctr_loss, pctcvr_loss]
+        )

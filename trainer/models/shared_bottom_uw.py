@@ -2,17 +2,20 @@ from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from trainer.models.common.basic_layers import MLPLayer
+from trainer.models.common.multi_task import (
+    UncertaintyWeightingLayer,
+)
 
 from trainer.util.tools import ObjectDict
 
 
-class SharedBottom(tfrs.Model):
+class SharedBottomUW(tfrs.Model):
     def __init__(
         self,
         hparams: ObjectDict,
         ranking_emb: tf.keras.Model,
     ):
-        super().__init__()
+        super().__init__(hparams)
         self.ranking_emb = ranking_emb
         self.hparams = hparams
         self.pctr_task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
@@ -36,6 +39,7 @@ class SharedBottom(tfrs.Model):
                 tf.keras.layers.Dense(1, "sigmoid"),
             ]
         )
+        self.MTO = UncertaintyWeightingLayer(hparams.gate_num)
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         shared_emb = self.ranking_emb(features, training=training)
@@ -69,5 +73,4 @@ class SharedBottom(tfrs.Model):
             predictions=pctcvr,
             training=training,
         )
-
-        return self.pctr_weight * pctr_loss + self.pctcvr_weight * pctcvr_loss
+        return self.MTO([pctr_loss, pctcvr_loss])

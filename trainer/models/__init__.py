@@ -21,6 +21,10 @@ from trainer.models.transformer import *
 from trainer.models.esmm import *
 from trainer.models.shared_bottom import *
 from trainer.models.mmoe import *
+from trainer.models.shared_bottom_gn import *
+from trainer.models.shared_bottom_uw import *
+from trainer.models.shared_bottom_dwa import *
+from trainer.models.shared_bottom_dtp import *
 
 model_factory = Factory()
 model_factory.register_all_subclasses(tfrs.Model)

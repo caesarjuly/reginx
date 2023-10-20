@@ -2,7 +2,7 @@ from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from trainer.models.common.basic_layers import MLPLayer
-from trainer.models.common.multi_task import MMOELayer
+from trainer.models.common.multi_task import MMOELayer, UncertaintyWeightingLayer
 
 from trainer.util.tools import ObjectDict
 
@@ -39,6 +39,7 @@ class MMOE(tfrs.Model):
                 tf.keras.layers.Dense(1, "sigmoid"),
             ]
         )
+        self.MTO = UncertaintyWeightingLayer(hparams.gate_num)
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         shared_emb = self.ranking_emb(features, training=training)
@@ -78,4 +79,4 @@ class MMOE(tfrs.Model):
             training=training,
         )
 
-        return self.pctr_weight * pctr_loss + self.pctcvr_weight * pctcvr_loss
+        return self.MTO([pctr_loss, pctcvr_loss])

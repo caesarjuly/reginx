@@ -2,17 +2,18 @@ from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from trainer.models.common.basic_layers import MLPLayer
+from trainer.models.common.multi_task import GradientNormModel
 
 from trainer.util.tools import ObjectDict
 
 
-class SharedBottom(tfrs.Model):
+class SharedBottomGN(GradientNormModel):
     def __init__(
         self,
         hparams: ObjectDict,
         ranking_emb: tf.keras.Model,
     ):
-        super().__init__()
+        super().__init__(hparams)
         self.ranking_emb = ranking_emb
         self.hparams = hparams
         self.pctr_task: tf.keras.layers.Layer = tfrs.tasks.Ranking(
@@ -24,6 +25,8 @@ class SharedBottom(tfrs.Model):
             metrics=[tf.keras.metrics.BinaryCrossentropy(), tf.keras.metrics.AUC()],
         )
         self.shared_bottom = MLPLayer()
+        # get the last dense layer, skip BN
+        self.last_shared_layer = self.shared_bottom.model.get_layer(index=-2)
         self.tower1 = tf.keras.Sequential(
             [
                 MLPLayer(),
@@ -69,5 +72,4 @@ class SharedBottom(tfrs.Model):
             predictions=pctcvr,
             training=training,
         )
-
-        return self.pctr_weight * pctr_loss + self.pctcvr_weight * pctcvr_loss
+        return [pctr_loss, pctcvr_loss]
