@@ -118,6 +118,7 @@ class GradientNormModel(tfrs.Model):
     def train_step(self, inputs):
         """Custom train step using the `compute_loss` method."""
 
+        # the tape need to be persistent if we need to use it multiple times
         with tf.GradientTape(persistent=True) as tape:
             loss_list = self.compute_loss(inputs, training=True)
             assert (
@@ -146,6 +147,7 @@ class GradientNormModel(tfrs.Model):
                 for i in range(self.task_num)
             ]
             # shape [1, second_last_layer_size, last_layer_size]
+            # get the mean gradient value across all tasks
             gradient_norm_avg = tf.reduce_mean(gradient_norm, axis=0, keepdims=True)
             # shape a list of task_num size
             loss_ratio = [loss_list[i] / self.loss0[i] for i in range(self.task_num)]
@@ -153,12 +155,9 @@ class GradientNormModel(tfrs.Model):
 
             # shape [task_num, 1, 1]
             # the relative inverse training rate, it will be broadcasted to gradient_norm_avg
-            train_rate = tf.expand_dims(
-                tf.expand_dims(
-                    tf.stack([l / loss_ratio_avg for l in loss_ratio]), axis=-1
-                ),
-                axis=-1,
-            )
+            train_rate = tf.stack([l / loss_ratio_avg for l in loss_ratio])[
+                :, tf.newaxis, tf.newaxis
+            ]
 
             regularization_loss = sum(self.losses)
 
@@ -252,13 +251,13 @@ class DynamicWeightAveragingModel(tfrs.Model):
                     lambda: loss,
                 )
 
-            # shape a list of task num size
+            # shape: a list of task_num size
             # the inverse training rate
             train_rate = [
                 loss_list[i] / self.prev_loss[i] / self.temperature
                 for i in range(self.task_num)
             ]
-            # unshape weight value from tensor
+            # unshape weight value from tensor to scalar
             weights = tf.split(tf.math.softmax(train_rate), self.task_num)
             for idx, weight in enumerate(weights):
                 self.loss_weights[idx].assign(tf.reshape(weight, []))

@@ -39,7 +39,7 @@ class SharedBottomUW(tfrs.Model):
                 tf.keras.layers.Dense(1, "sigmoid"),
             ]
         )
-        self.MTO = UncertaintyWeightingLayer(hparams.gate_num)
+        self.uw = UncertaintyWeightingLayer(hparams.gate_num)
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         shared_emb = self.ranking_emb(features, training=training)
@@ -73,4 +73,4 @@ class SharedBottomUW(tfrs.Model):
             predictions=pctcvr,
             training=training,
         )
-        return self.MTO([pctr_loss, pctcvr_loss])
+        return self.uw([pctr_loss, pctcvr_loss])
