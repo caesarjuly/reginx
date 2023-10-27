@@ -2,14 +2,12 @@ from typing import Dict, Text
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 from trainer.models.common.basic_layers import MLPLayer
-from trainer.models.common.multi_task import (
-    UncertaintyWeightingLayer,
-)
+from trainer.models.common.multi_task import PELTRModel
 
 from trainer.util.tools import ObjectDict
 
 
-class SharedBottomUW(tfrs.Model):
+class SharedBottomPELTR(PELTRModel):
     def __init__(
         self,
         hparams: ObjectDict,
@@ -27,6 +25,8 @@ class SharedBottomUW(tfrs.Model):
             metrics=[tf.keras.metrics.BinaryCrossentropy(), tf.keras.metrics.AUC()],
         )
         self.shared_bottom = MLPLayer()
+        # get the last dense layer, skip BN
+        self.last_shared_layer = self.shared_bottom.model.get_layer(index=-2)
         self.tower1 = tf.keras.Sequential(
             [
                 MLPLayer(),
@@ -39,7 +39,6 @@ class SharedBottomUW(tfrs.Model):
                 tf.keras.layers.Dense(1, "sigmoid"),
             ]
         )
-        self.uw = UncertaintyWeightingLayer(hparams.task_num)
 
     def call(self, features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
         shared_emb = self.ranking_emb(features, training=training)
@@ -73,4 +72,4 @@ class SharedBottomUW(tfrs.Model):
             predictions=pctcvr,
             training=training,
         )
-        return self.uw([pctr_loss, pctcvr_loss])
+        return [pctr_loss, pctcvr_loss]

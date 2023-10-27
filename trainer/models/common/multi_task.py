@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
 
@@ -134,34 +135,37 @@ class GradientNormModel(tfrs.Model):
                 )
 
             # the gradient norms
-            # shape [task_num, second_last_layer_size, last_layer_size]
+            # shape [task_num, second_last_layer_size*last_layer_size]
             # trainable_variables[0] means only use the weights, ignore bias
-            gradient_norm = [
-                tf.math.l2_normalize(
-                    tape.gradient(
-                        self.loss_weights[i] * loss_list[i],
-                        self.last_shared_layer.trainable_variables[0],
-                    ),
-                    axis=-1,
-                )
-                for i in range(self.task_num)
-            ]
-            # shape [1, second_last_layer_size, last_layer_size]
+            gradient_norm = tf.reshape(
+                [
+                    tf.math.l2_normalize(
+                        tape.gradient(
+                            self.loss_weights[i] * loss_list[i],
+                            self.last_shared_layer.trainable_variables[0],
+                        ),
+                        axis=-1,
+                    )
+                    for i in range(self.task_num)
+                ],
+                [self.task_num, -1],
+            )
+            # shape [1, second_last_layer_size*last_layer_size]
             # get the mean gradient value across all tasks
             gradient_norm_avg = tf.reduce_mean(gradient_norm, axis=0, keepdims=True)
-            # shape a list of task_num size
+            # shape [task_num]
             loss_ratio = [loss_list[i] / self.loss0[i] for i in range(self.task_num)]
             loss_ratio_avg = tf.reduce_mean(loss_ratio)
 
-            # shape [task_num, 1, 1]
+            # shape [task_num, 1]
             # the relative inverse training rate, it will be broadcasted to gradient_norm_avg
             train_rate = tf.stack([l / loss_ratio_avg for l in loss_ratio])[
-                :, tf.newaxis, tf.newaxis
+                :, tf.newaxis
             ]
 
             regularization_loss = sum(self.losses)
 
-            # shape [task_num, second_last_layer_size, last_layer_size]
+            # shape [task_num, second_last_layer_size*last_layer_size]
             # gradient normed loss
             loss_grad = tf.math.abs(
                 gradient_norm - gradient_norm_avg * tf.math.pow(train_rate, self.alpha)
@@ -335,3 +339,116 @@ class DynamicTaskPrioritizationLayer(tf.keras.layers.Layer):
                 -tf.math.pow(1 - kpi, self.gamma) * tf.math.log(kpi) * loss
             )
         return tf.reduce_sum(final_loss, axis=0)
+
+
+class PELTRModel(tfrs.Model):
+    """customized training step based on PELTR
+
+    References
+        - [A Pareto-Efficient Algorithm for Multiple Objective Optimization in E-Commerce Recommendation](http://ofey.me/papers/Pareto.pdf)
+    """
+
+    def __init__(self, hparams, *args, **kwargs):
+        super(PELTRModel, self).__init__(*args, **kwargs)
+        self.task_num = hparams.task_num
+        self.loss_weights = [
+            tf.Variable(initial_value=1 / self.task_num, name="loss_weight_" + str(i))
+            for i in range(self.task_num)
+        ]
+
+    def pareto_step(self, weights_list, out_gradients_list):
+        # reference https://github.com/jackielinxiao/PE-LTR/blob/master/main.py
+        model_gradients = out_gradients_list
+        M1 = np.matmul(model_gradients, np.transpose(model_gradients))
+        e = np.mat(np.ones(np.shape(weights_list)))
+        M = np.hstack((M1, np.transpose(e)))
+        mid = np.hstack((e, np.mat(np.zeros((1, 1)))))
+        M = np.vstack((M, mid))
+        z = np.mat(np.zeros(np.shape(weights_list)))
+        nid = np.hstack((z, np.mat(np.ones((1, 1)))))
+        w = np.matmul(
+            np.matmul(M, np.linalg.inv(np.matmul(M, np.transpose(M)))),
+            np.transpose(nid),
+        )
+        if len(w) > 1:
+            w = np.transpose(w)
+            w = w[0, 0 : np.shape(w)[1]]
+            mid = np.where(w > 0, 1.0, 0)
+            nid = np.multiply(mid, w)
+            uid = sorted(nid[0].tolist()[0], reverse=True)
+            sv = np.cumsum(uid)
+            rho = np.where(uid > (sv - 1.0) / range(1, len(uid) + 1), 1.0, 0.0)
+            r = max(np.argwhere(rho))
+            theta = max(0, (sv[r] - 1.0) / (r + 1))
+            w = np.where(nid - theta > 0.0, nid - theta, 0)
+        return w
+
+    def train_step(self, inputs):
+        """Custom train step using the `compute_loss` method."""
+
+        with tf.GradientTape(persistent=True) as tape:
+            loss_list = self.compute_loss(inputs, training=True)
+            assert (
+                len(loss_list) == self.task_num
+            ), "loss number must equal to task number"
+
+            # total loss
+            loss = tf.reduce_sum(
+                [self.loss_weights[i] * loss_list[i] for i in range(self.task_num)]
+            )
+            regularization_loss = sum(self.losses)
+
+            total_loss = loss + regularization_loss
+
+        # the gradients for each loss
+        # shape [task_num, second_last_layer_size * last_layer_size]
+        # trainable_variables[0] means only use the weights, ignore bias
+        loss_gradients = tf.reshape(
+            [
+                tape.gradient(
+                    loss_list[i],
+                    self.last_shared_layer.trainable_variables[0],
+                )
+                for i in range(self.task_num)
+            ],
+            [self.task_num, -1],
+        )
+
+        gradients = tape.gradient(total_loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+
+        # update weights
+        # shape [1, task_num]
+        loss_weights = tf.expand_dims(tf.stack(self.loss_weights), axis=0)
+        mid = tf.py_function(
+            func=self.pareto_step, inp=[loss_weights, loss_gradients], Tout=tf.float32
+        )
+        for i in range(self.task_num):
+            self.loss_weights[i].assign(mid[0][i])
+
+        metrics = {metric.name: metric.result() for metric in self.metrics}
+        metrics["loss"] = loss
+        metrics["regularization_loss"] = regularization_loss
+        metrics["total_loss"] = total_loss
+
+        del tape
+        return metrics
+
+    def test_step(self, inputs):
+        """Custom test step using the `compute_loss` method."""
+
+        loss_list = self.compute_loss(inputs, training=False)
+        loss = tf.reduce_sum(
+            [self.loss_weights[i] * loss_list[i] for i in range(self.task_num)]
+        )
+        # Handle regularization losses as well.
+        regularization_loss = sum(self.losses)
+
+        total_loss = loss + regularization_loss
+
+        metrics = {metric.name: metric.result() for metric in self.metrics}
+        metrics["loss"] = loss
+        metrics["regularization_loss"] = regularization_loss
+        metrics["total_loss"] = total_loss
+
+        return metrics

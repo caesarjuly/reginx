@@ -25,6 +25,7 @@ from trainer.models.shared_bottom_gn import *
 from trainer.models.shared_bottom_uw import *
 from trainer.models.shared_bottom_dwa import *
 from trainer.models.shared_bottom_dtp import *
+from trainer.models.shared_bottom_peltr import *
 
 model_factory = Factory()
 model_factory.register_all_subclasses(tfrs.Model)
