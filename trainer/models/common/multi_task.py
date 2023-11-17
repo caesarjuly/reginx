@@ -262,7 +262,7 @@ class DynamicWeightAveragingModel(tfrs.Model):
                 for i in range(self.task_num)
             ]
             # unshape weight value from tensor to scalar
-            weights = tf.split(tf.math.softmax(train_rate), self.task_num)
+            weights = tf.split(self.task_num * tf.math.softmax(train_rate), self.task_num)
             for idx, weight in enumerate(weights):
                 self.loss_weights[idx].assign(tf.reshape(weight, []))
 
@@ -278,6 +278,10 @@ class DynamicWeightAveragingModel(tfrs.Model):
 
             total_loss = loss + regularization_loss
 
+        # skip weights
+        trainable_variables = self.trainable_variables
+        for w in self.loss_weights:
+            trainable_variables.remove(w)
         gradients = tape.gradient(total_loss, self.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
